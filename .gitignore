@@ -1,0 +1,21 @@
+# Projektidata — ei GitHubiin (sisältää yritystietoja)
+data/
+tuonti/
+
+# Streamlit salaisuudet — EI KOSKAAN GitHubiin
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Claude Code
+.claude/
+
+# macOS
+.DS_Store
+
+# Streamlit local settings
+.streamlit/config.toml
