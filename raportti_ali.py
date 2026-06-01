@@ -193,6 +193,29 @@ def luo_viikkoraportti(
                     yr_yht_eur += summa
                 r += 1
 
+                # Päiväkohtaiset huomiot omalle riville (jos on merkintöjä)
+                huomiot = rv.get("huomiot", {})
+                paiva_avaimet = ["ma","ti","ke","to","pe","la","su"]
+                merkinnät = [(i, huomiot.get(pk,"")) for i, pk in enumerate(paiva_avaimet)
+                             if huomiot.get(pk,"").strip()]
+                if merkinnät:
+                    ws.row_dimensions[r].height = 13
+                    ws.merge_cells(f"A{r}:B{r}")
+                    c = ws.cell(r, 1, "")
+                    c.fill = PatternFill("solid", fgColor="F8F8F8")
+                    for col_i, teksti in merkinnät:
+                        c = ws.cell(r, col_i + 3, teksti)
+                        c.font = Font(size=8, italic=True, color="555555")
+                        c.alignment = Alignment(horizontal="center", wrap_text=True)
+                        c.fill = PatternFill("solid", fgColor="F8F8F8")
+                        c.border = THIN_B
+                    # Täytä tyhjät solut samalla taustavärillä
+                    for col_i in range(3, 16):
+                        if ws.cell(r, col_i).value is None:
+                            ws.cell(r, col_i).fill = PatternFill("solid", fgColor="F8F8F8")
+                            ws.cell(r, col_i).border = THIN_B
+                    r += 1
+
             # Yrityksen yhteensä-rivi
             ws.row_dimensions[r].height = 16
             ws.merge_cells(f"A{r}:I{r}")

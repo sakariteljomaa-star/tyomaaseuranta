@@ -203,14 +203,36 @@ with tab_pikasyotto:
 
         st.divider()
 
+        # ── Päiväkohtaiset huomiot pikasyötössä ──────────────────────────────
+        with st.expander("📝 Päiväkohtaiset huomiot", expanded=False):
+            st.caption("Kirjaa mitä kukin teki minäkin päivänä.")
+            pika_huomiot = {}  # {nimi: {pk: teksti}}
+            for t in tyontekijat_lista:
+                nimi = t["nimi"]
+                nyky_hm = next(
+                    (r.get("huomiot", {}) for r in ali_rivit
+                     if r.get("viikko") == int(viikko)
+                     and r.get("vuosi", int(vuosi)) == int(vuosi)
+                     and r.get("nimi") == nimi),
+                    {}
+                )
+                st.markdown(f"**{nimi}**")
+                hm_cols = st.columns(7)
+                pika_huomiot[nimi] = {}
+                for i, (P, pk, p) in enumerate(zip(PAIVAT, PAIVA_AVAIN, paivat)):
+                    pika_huomiot[nimi][pk] = hm_cols[i].text_input(
+                        f"{P} {p.strftime('%-d.%-m.')}",
+                        value=nyky_hm.get(pk, ""),
+                        key=f"pika_hm_{nimi}_{pk}",
+                        placeholder="–",
+                    )
+
         if st.button("💾 Tallenna kaikki", type="primary", use_container_width=True):
             tallennettu = 0
             for _, row in df_muokattu.iterrows():
                 nimi = row["Nimi"]
                 tunnit = {pk: float(row[po]) for pk, po in zip(PAIVA_AVAIN, paiva_otsikot)}
                 yht_h  = sum(tunnit.values())
-
-                # Hae laskutustiedot tekijälistalta
                 t_info = next((t for t in tyontekijat_lista if t["nimi"] == nimi), {})
 
                 uusi = {
@@ -226,6 +248,7 @@ with tab_pikasyotto:
                     "tuntihinta":     t_info.get("tuntihinta"),
                     "kiintea_hinta":  t_info.get("kiintea_hinta"),
                     "huomio":         "",
+                    "huomiot":        pika_huomiot.get(nimi, {}),
                 }
                 ali_rivit = [r for r in ali_rivit
                              if not (r.get("viikko") == int(viikko)
@@ -268,22 +291,32 @@ with tab_yksittainen:
                 st.caption("Laskutus: Vain tunnit")
 
         with col_oik:
-            st.markdown("**Tunnit päivittäin**")
+            st.markdown("**Tunnit ja huomiot päivittäin**")
             # Hae esitäyttö
             nyky = next((r for r in ali_rivit
                          if r.get("viikko") == int(viikko)
                          and r.get("vuosi", int(vuosi)) == int(vuosi)
                          and r.get("nimi") == valittu_nimi), {})
+            nyky_huomiot = nyky.get("huomiot", {})
 
             cols_h = st.columns(7)
-            h_arvot = {}
+            h_arvot   = {}
+            h_huomiot = {}
             for i, (P, pk, p) in enumerate(zip(PAIVAT, PAIVA_AVAIN, paivat)):
-                oletus_h = float(nyky.get(pk, 0) or 0)
+                oletus_h  = float(nyky.get(pk, 0) or 0)
+                oletus_hm = nyky_huomiot.get(pk, "")
                 h_arvot[pk] = cols_h[i].number_input(
-                    f"{P}\n{p.strftime('%-d.%-m.')}",
+                    f"{P} {p.strftime('%-d.%-m.')}",
                     min_value=0.0, max_value=24.0,
                     value=oletus_h, step=0.5,
                     key=f"yk_{pk}",
+                )
+                h_huomiot[pk] = cols_h[i].text_input(
+                    "Huomio",
+                    value=oletus_hm,
+                    key=f"yk_hm_{pk}",
+                    placeholder="mitä tehty",
+                    label_visibility="collapsed",
                 )
 
             yht_h = sum(h_arvot.values())
@@ -297,7 +330,7 @@ with tab_yksittainen:
                         h_arvot[pk] = float(lisays)
                     yht_h = sum(h_arvot.values())
 
-        huomio = st.text_input("Huomio (vapaaehtoinen)", key="yk_huomio")
+        huomio = st.text_input("Yleinen huomio viikolle (vapaaehtoinen)", key="yk_huomio")
 
         c1, c2 = st.columns(2)
         c1.metric("Tunnit yhteensä", f"{yht_h:.1f} h")
@@ -318,6 +351,7 @@ with tab_yksittainen:
                 "tuntihinta":    t_info.get("tuntihinta"),
                 "kiintea_hinta": t_info.get("kiintea_hinta"),
                 "huomio":        huomio,
+                "huomiot":       h_huomiot,
             }
             ali_rivit = [r for r in ali_rivit
                          if not (r.get("viikko") == int(viikko)
@@ -364,6 +398,23 @@ with tab_vkoyht:
 
         df_yht = pd.DataFrame(tbl)
         st.dataframe(df_yht, use_container_width=True, hide_index=True)
+
+        # Päiväkohtaiset huomiot yhteenvedossa
+        huomiot_olemassa = any(
+            any(v for v in r.get("huomiot", {}).values())
+            for r in vko_rivit
+        )
+        if huomiot_olemassa:
+            with st.expander("📝 Päiväkohtaiset huomiot", expanded=False):
+                for rv in sorted(vko_rivit, key=lambda r: r.get("yritys","")):
+                    huomiot = rv.get("huomiot", {})
+                    merkinnat = [(P, p, huomiot.get(pk,""))
+                                 for P, pk, p in zip(PAIVAT, PAIVA_AVAIN, paivat)
+                                 if huomiot.get(pk,"").strip()]
+                    if merkinnat:
+                        st.markdown(f"**{rv['nimi']}** ({rv.get('yritys','')})")
+                        for P, p, teksti in merkinnat:
+                            st.caption(f"{P} {p.strftime('%-d.%-m.')}: {teksti}")
 
         # Metriikat
         tot_h   = sum(r.get("yht_h",0) for r in vko_rivit)
