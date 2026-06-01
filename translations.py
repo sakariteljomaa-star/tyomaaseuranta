@@ -130,7 +130,7 @@ KAANNOKSET = {
 }
 
 
-def t(avain: str, kieli: str = "fi"):
+def tr(avain: str, kieli: str = "fi"):
     """Palauttaa käännöksen annetulle avaimelle ja kielelle."""
     if avain not in KAANNOKSET:
         return avain
