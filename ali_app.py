@@ -15,6 +15,7 @@ import json
 
 from storage import lataa_ali_tunnit, tallenna_ali_tunnit, hae_projektit
 from raportti_ali import luo_viikkoraportti
+from translations import t, paivat as _paivat_nimet, kategoriat, laskutustavat
 
 # ── Apufunktiot ────────────────────────────────────────────────────────────────
 
@@ -29,22 +30,22 @@ KATEGORIAT  = ["Urakka","Lisätyö","Vesivahinko"]
 
 # ── Hyväksyntätilat ───────────────────────────────────────────────────────────
 TILAT = {
-    "odottaa":    {"emoji": "🔵", "label": "Odottaa hyväksyntää", "väri": "#E3F0FF", "reuna": "#1E88E5"},
-    "hyvaksytty": {"emoji": "✅", "label": "Hyväksytty",          "väri": "#E8F5E9", "reuna": "#43A047"},
-    "selvitys":   {"emoji": "⚠️", "label": "Selvitys vaaditaan",  "väri": "#FFF8E1", "reuna": "#F9A825"},
+    "odottaa":    {"emoji": "🔵", "tila_avain": "tila_odottaa",    "väri": "#E3F0FF", "reuna": "#1E88E5"},
+    "hyvaksytty": {"emoji": "✅", "tila_avain": "tila_hyvaksytty", "väri": "#E8F5E9", "reuna": "#43A047"},
+    "selvitys":   {"emoji": "⚠️", "tila_avain": "tila_selvitys",   "väri": "#FFF8E1", "reuna": "#F9A825"},
 }
 
 def _tila_css(tila: str) -> str:
-    t = TILAT.get(tila, TILAT["odottaa"])
+    td = TILAT.get(tila, TILAT["odottaa"])
     return (
-        f"background-color:{t['väri']};"
-        f"border-left:5px solid {t['reuna']};"
+        f"background-color:{td['väri']};"
+        f"border-left:5px solid {td['reuna']};"
         f"border-radius:6px;padding:10px 14px;margin:4px 0;"
     )
 
-def _tila_badge(tila: str) -> str:
-    t = TILAT.get(tila, TILAT["odottaa"])
-    return f"{t['emoji']} {t['label']}"
+def _tila_badge(tila: str, kieli: str = "fi") -> str:
+    td = TILAT.get(tila, TILAT["odottaa"])
+    return f"{td['emoji']} {t(td['tila_avain'], kieli)}"
 
 def _lataa_tyontekijat() -> list:
     if TYONTEKIJAT_POLKU.exists():
@@ -93,16 +94,25 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("👷 Aliurakoitsijoiden tuntikirja")
-st.caption("Uudenmaan Asbestipurku Oy")
-
 # ── Tallennetut asetukset ──────────────────────────────────────────────────────
 asetukset = _lataa_asetukset()
-tyontekijat_lista = _lataa_tyontekijat()  # [{nimi, yritys, laskutustapa, tuntihinta, kiintea}]
+tyontekijat_lista = _lataa_tyontekijat()
 
 # ── SIVUPALKKI ──────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.header("Projekti & viikko")
+    # Kielinappi
+    k1, k2 = st.columns(2)
+    if k1.button("🇫🇮 Suomi", use_container_width=True,
+                 type="primary" if st.session_state.get("kieli","fi")=="fi" else "secondary"):
+        st.session_state["kieli"] = "fi"
+        st.rerun()
+    if k2.button("🇷🇺 Русский", use_container_width=True,
+                 type="primary" if st.session_state.get("kieli","fi")=="ru" else "secondary"):
+        st.session_state["kieli"] = "ru"
+        st.rerun()
+
+    kieli = st.session_state.get("kieli", "fi")
+    st.divider()
 
     # Projekti
     projektit = _hae_projektit()
@@ -110,30 +120,37 @@ with st.sidebar:
     if projekti_oletus not in projektit:
         projektit = [projekti_oletus] + projektit if projekti_oletus else projektit
     projekti = st.text_input(
-        "Projektin nimi",
+        t("projekti", kieli),
         value=projekti_oletus,
-        placeholder="esim. Valteri-koulu, Tenholantie 15",
+        placeholder=t("projekti_ph", kieli),
     )
 
     # Viikko ja vuosi
     tana = date.today()
-    vuosi   = st.number_input("Vuosi",  value=asetukset.get("vuosi",  tana.year),  step=1, format="%d")
-    viikko  = st.number_input("Viikko", value=asetukset.get("viikko", int(tana.strftime("%V"))),
-                               min_value=1, max_value=53, step=1)
+    vuosi  = st.number_input(t("vuosi", kieli),  value=asetukset.get("vuosi",  tana.year),  step=1, format="%d")
+    viikko = st.number_input(t("viikko", kieli), value=asetukset.get("viikko", int(tana.strftime("%V"))),
+                              min_value=1, max_value=53, step=1)
 
     # Näytä viikon päivät
-    paivat = _viikon_paivat(int(vuosi), int(viikko))
-    st.caption(" · ".join(f"{P} {p.strftime('%-d.%-m.')}" for P, p in zip(PAIVAT, paivat)))
+    paivat      = _viikon_paivat(int(vuosi), int(viikko))
+    PAIVAT_NYK  = _paivat_nimet(kieli)
+    KATEGORIAT  = kategoriat(kieli)
+    LASK_TAVAT  = laskutustavat(kieli)
 
+    st.caption(" · ".join(f"{P} {p.strftime('%-d.%-m.')}" for P, p in zip(PAIVAT_NYK, paivat)))
     st.divider()
 
     # Oletuskategoria
-    kat_oletus = asetukset.get("kategoria", "Urakka")
+    kat_oletus = asetukset.get("kategoria", KATEGORIAT[0])
     kat_idx    = KATEGORIAT.index(kat_oletus) if kat_oletus in KATEGORIAT else 0
-    oletus_kat = st.selectbox("Oletuskategoria", KATEGORIAT, index=kat_idx)
+    oletus_kat = st.selectbox(t("oletus_kat", kieli), KATEGORIAT, index=kat_idx)
 
     st.divider()
-    st.caption("🔗 Pääsovellus: http://localhost:8501")
+    st.caption(f"🔗 {t('paasovellus', kieli)}: http://localhost:8501")
+
+kieli = st.session_state.get("kieli", "fi")
+st.title(f"👷 {t('app_title', kieli)}")
+st.caption(t("app_caption", kieli))
 
 # Tallenna viimeksi käytetyt asetukset
 _tallenna_asetukset({
@@ -152,10 +169,10 @@ ali_rivit: list = lataa_ali_tunnit(projekti)
 
 # ── VÄLILEHDET ──────────────────────────────────────────────────────────────────
 tab_pikasyotto, tab_yksittainen, tab_vkoyht, tab_tekijat = st.tabs([
-    "⚡ Pikasyöttö",
-    "👤 Yksittäinen",
-    "📊 Viikkoyhteenveto",
-    "👥 Tekijälista",
+    t("tab_pikasyotto", kieli),
+    t("tab_yksittainen", kieli),
+    t("tab_vkoyht", kieli),
+    t("tab_tekijat", kieli),
 ])
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -166,7 +183,7 @@ with tab_pikasyotto:
     st.caption("Täytä taulukko ja paina Tallenna. Tyhjät = 0 h.")
 
     if not tyontekijat_lista:
-        st.info("Lisää ensin aliurakoitsijat **Tekijälista**-välilehdeltä.")
+        st.info(t("ei_tekijoita", kieli))
     else:
         # Rakenna syöttötaulukko
         # Hae nykyiset tallennukset tälle viikolle esitäyttöä varten
@@ -193,10 +210,10 @@ with tab_pikasyotto:
 
         # Päivä-sarakkeiden config
         sarake_config = {
-            "Nimi":     st.column_config.TextColumn("Nimi", disabled=True, width="medium"),
-            "Yritys":   st.column_config.TextColumn("Yritys", disabled=True, width="medium"),
+            "Nimi":     st.column_config.TextColumn(t("taulukko_nimi",kieli), disabled=True, width="medium"),
+            "Yritys":   st.column_config.TextColumn(t("taulukko_yritys",kieli), disabled=True, width="medium"),
             "Kategoria": st.column_config.SelectboxColumn(
-                "Kategoria", options=KATEGORIAT, width="small"),
+                t("kategoria",kieli), options=KATEGORIAT, width="small"),
         }
         for po in paiva_otsikot:
             sarake_config[po] = st.column_config.NumberColumn(
@@ -239,8 +256,8 @@ with tab_pikasyotto:
         st.divider()
 
         # ── Päiväkohtaiset huomiot pikasyötössä ──────────────────────────────
-        with st.expander("📝 Päiväkohtaiset huomiot", expanded=False):
-            st.caption("Kirjaa mitä kukin teki minäkin päivänä.")
+        with st.expander(t("pv_huomiot", kieli), expanded=False):
+            st.caption(t("tunnit_pv", kieli))
             pika_huomiot = {}  # {nimi: {pk: teksti}}
             for t in tyontekijat_lista:
                 nimi = t["nimi"]
@@ -262,7 +279,7 @@ with tab_pikasyotto:
                         placeholder="–",
                     )
 
-        if st.button("💾 Tallenna kaikki", type="primary", use_container_width=True):
+        if st.button(t("tallenna_kaikki", kieli), type="primary", use_container_width=True):
             tallennettu = 0
             for _, row in df_muokattu.iterrows():
                 nimi = row["Nimi"]
@@ -293,24 +310,24 @@ with tab_pikasyotto:
                 tallennettu += 1
 
             tallenna_ali_tunnit(projekti, ali_rivit)
-            st.success(f"✅ Tallennettu {tallennettu} tekijää — viikko {viikko}/{vuosi}")
+            st.success(f"{t('tallennettu', kieli)}: {tallennettu} — {t('viikko', kieli)} {viikko}/{vuosi}")
             st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# YKSITTÄINEN SYÖTTÖ — yksi tekijä kerrallaan, isot napit
+# YKSITTÄINEN SYÖTTÖ
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_yksittainen:
-    st.subheader("Yksittäinen kirjaus")
+    st.subheader(t("tab_yksittainen", kieli))
 
-    nimet = [t["nimi"] for t in tyontekijat_lista]
+    nimet = [tk["nimi"] for tk in tyontekijat_lista]
     if not nimet:
-        st.info("Lisää aliurakoitsijat **Tekijälista**-välilehdeltä.")
+        st.info(t("ei_tekijoita", kieli))
     else:
         col_vas, col_oik = st.columns([1, 2])
         with col_vas:
-            valittu_nimi = st.selectbox("Tekijä", nimet)
-            t_info = next((t for t in tyontekijat_lista if t["nimi"] == valittu_nimi), {})
-            st.caption(f"Yritys: {t_info.get('yritys','–')}")
+            valittu_nimi = st.selectbox(t("tekija", kieli), nimet)
+            t_info = next((tk for tk in tyontekijat_lista if tk["nimi"] == valittu_nimi), {})
+            st.caption(f"{t('yritys', kieli)}: {t_info.get('yritys','–')}")
 
             # Työnjohtajan kommentti tällä tekijällä tälle viikolle
             nyky_rv = next((r for r in ali_rivit
@@ -326,8 +343,9 @@ with tab_yksittainen:
                     unsafe_allow_html=True,
                 )
 
-            yk_kat = st.selectbox("Kategoria", KATEGORIAT,
-                                  index=KATEGORIAT.index(oletus_kat), key="yk_kat")
+            yk_kat = st.selectbox(t("kategoria", kieli), KATEGORIAT,
+                                  index=KATEGORIAT.index(oletus_kat) if oletus_kat in KATEGORIAT else 0,
+                                  key="yk_kat")
 
             lp = t_info.get("laskutustapa","tunnit")
             if lp == "tuntihinta":
@@ -340,7 +358,7 @@ with tab_yksittainen:
                 st.caption("Laskutus: Vain tunnit")
 
         with col_oik:
-            st.markdown("**Tunnit ja huomiot päivittäin**")
+            st.markdown(f"**{t('tunnit_pv', kieli)}**")
             # Hae esitäyttö
             nyky = next((r for r in ali_rivit
                          if r.get("viikko") == int(viikko)
@@ -351,7 +369,7 @@ with tab_yksittainen:
             cols_h = st.columns(7)
             h_arvot   = {}
             h_huomiot = {}
-            for i, (P, pk, p) in enumerate(zip(PAIVAT, PAIVA_AVAIN, paivat)):
+            for i, (P, pk, p) in enumerate(zip(PAIVAT_NYK, PAIVA_AVAIN, paivat)):
                 oletus_h  = float(nyky.get(pk, 0) or 0)
                 oletus_hm = nyky_huomiot.get(pk, "")
                 h_arvot[pk] = cols_h[i].number_input(
@@ -361,17 +379,17 @@ with tab_yksittainen:
                     key=f"yk_{pk}",
                 )
                 h_huomiot[pk] = cols_h[i].text_input(
-                    "Huomio",
+                    t("huomio", kieli),
                     value=oletus_hm,
                     key=f"yk_hm_{pk}",
-                    placeholder="mitä tehty",
+                    placeholder=t("huomio_ph", kieli),
                     label_visibility="collapsed",
                 )
 
             yht_h = sum(h_arvot.values())
 
             # Pikasyöttönapit
-            st.markdown("**Lisää tunnit kerralla:**")
+            st.markdown(f"**{t('lisaa_tunnit', kieli)}**")
             btn_cols = st.columns(5)
             for lisays in [6, 7, 8, 9, 10]:
                 if btn_cols[lisays-6].button(f"+{lisays}h ark", key=f"btn_{lisays}"):
@@ -379,14 +397,14 @@ with tab_yksittainen:
                         h_arvot[pk] = float(lisays)
                     yht_h = sum(h_arvot.values())
 
-        huomio = st.text_input("Yleinen huomio viikolle (vapaaehtoinen)", key="yk_huomio")
+        huomio = st.text_input(t("yleinen_huomio", kieli), key="yk_huomio")
 
         c1, c2 = st.columns(2)
         c1.metric("Tunnit yhteensä", f"{yht_h:.1f} h")
         if lp == "tuntihinta" and t_info.get("tuntihinta"):
             c2.metric("Summa", f"{yht_h * t_info['tuntihinta']:,.0f} €")
 
-        if st.button("💾 Tallenna", type="primary", use_container_width=True, key="yk_tall"):
+        if st.button(t("tallenna", kieli), type="primary", use_container_width=True, key="yk_tall"):
             uusi = {
                 "id":       f"{viikko}_{vuosi}_{valittu_nimi}".replace(" ","_"),
                 "viikko":   int(viikko),
@@ -408,7 +426,7 @@ with tab_yksittainen:
                                  and r.get("nimi") == valittu_nimi)]
             ali_rivit.append(uusi)
             tallenna_ali_tunnit(projekti, ali_rivit)
-            st.success(f"✅ {valittu_nimi} — {yht_h:.1f} h tallennettu!")
+            st.success(f"✅ {valittu_nimi} — {yht_h:.1f} h {t('tallennettu', kieli).replace('✅ ','').lower()}!")
             st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -424,7 +442,7 @@ with tab_vkoyht:
                  and r.get("vuosi", int(vuosi)) == int(vuosi)]
 
     if not vko_rivit:
-        st.info("Ei kirjauksia tälle viikolle.")
+        st.info(t("ei_kirjauksia", kieli))
     else:
         # Taulukko
         tbl = []
@@ -441,9 +459,9 @@ with tab_vkoyht:
             }
             for po, h in zip(paiva_otsikot_yht, h_per_paiva):
                 rivi[po] = h if h else ""
-            rivi["Yht (h)"]   = yht
-            rivi["Summa (€)"] = f"{summa:,.0f}" if summa else "–"
-            rivi["Tila"]      = _tila_badge(rv.get("hyvaksynta_tila","odottaa"))
+            rivi[t("taulukko_yht",kieli)]   = yht
+            rivi[t("taulukko_summa",kieli)] = f"{summa:,.0f}" if summa else "–"
+            rivi[t("taulukko_tila",kieli)]  = _tila_badge(rv.get("hyvaksynta_tila","odottaa"), kieli)
             tbl.append(rivi)
 
         df_yht = pd.DataFrame(tbl)
@@ -455,7 +473,7 @@ with tab_vkoyht:
             for r in vko_rivit
         )
         if huomiot_olemassa:
-            with st.expander("📝 Päiväkohtaiset huomiot", expanded=False):
+            with st.expander(t("pv_huomiot", kieli), expanded=False):
                 for rv in sorted(vko_rivit, key=lambda r: r.get("yritys","")):
                     huomiot = rv.get("huomiot", {})
                     merkinnat = [(P, p, huomiot.get(pk,""))
@@ -468,7 +486,7 @@ with tab_vkoyht:
 
         # ── Hyväksyntä ────────────────────────────────────────────────────────
         st.divider()
-        st.markdown("### 🔏 Hyväksyntä")
+        st.markdown(f"### {t('hyvaksynta', kieli)}")
 
         hyv_muutettu = False
         for rv in sorted(vko_rivit, key=lambda r: r.get("yritys","")):
@@ -496,7 +514,7 @@ with tab_vkoyht:
             btn_id = rv["id"].replace("-","_")
             b1, b2, b3, b4 = st.columns([2, 2, 2, 4])
 
-            if b1.button("✅ Hyväksy", key=f"hyv_{btn_id}", use_container_width=True):
+            if b1.button(t("hyvaksy", kieli), key=f"hyv_{btn_id}", use_container_width=True):
                 rv["hyvaksynta_tila"]   = "hyvaksytty"
                 rv["hyvaksynta_pvm"]    = date.today().strftime("%d.%m.%Y")
                 rv["hyvaksynta_klo"]    = __import__("datetime").datetime.now().strftime("%H:%M")
@@ -504,14 +522,14 @@ with tab_vkoyht:
                 rv["hyvaksynta_huomio"] = ""
                 hyv_muutettu = True
 
-            if b2.button("⚠️ Selvitys", key=f"sel_{btn_id}", use_container_width=True):
+            if b2.button(t("selvitys_nappi", kieli), key=f"sel_{btn_id}", use_container_width=True):
                 rv["hyvaksynta_tila"] = "selvitys"
                 rv["hyvaksynta_pvm"]  = date.today().strftime("%d.%m.%Y")
                 rv["hyvaksynta_klo"]  = __import__("datetime").datetime.now().strftime("%H:%M")
                 rv["hyvaksynta_kuka"] = "Työnjohtaja"
                 hyv_muutettu = True
 
-            if b3.button("🔄 Palauta", key=f"pal_{btn_id}", use_container_width=True):
+            if b3.button(t("palauta", kieli), key=f"pal_{btn_id}", use_container_width=True):
                 rv["hyvaksynta_tila"]   = "odottaa"
                 rv["hyvaksynta_pvm"]    = ""
                 rv["hyvaksynta_klo"]    = ""
@@ -522,10 +540,10 @@ with tab_vkoyht:
             # Huomio-kenttä selvitys-tilassa
             if tila == "selvitys":
                 uusi_hm = b4.text_input(
-                    "Selvityksen syy",
+                    t("selvityksen_syy", kieli),
                     value=hyv_hm,
                     key=f"hm_{btn_id}",
-                    placeholder="Mikä vaatii selvitystä?",
+                    placeholder=t("selvityksen_ph", kieli),
                 )
                 if uusi_hm != hyv_hm:
                     rv["hyvaksynta_huomio"] = uusi_hm
@@ -534,24 +552,24 @@ with tab_vkoyht:
             # ── Työnjohtajan kommentti ────────────────────────────────────────
             nyky_kommentti = rv.get("tj_kommentti", "")
             with st.expander(
-                f"💬 Työnjohtajan kommentti" + (f": {nyky_kommentti[:40]}…" if len(nyky_kommentti) > 40 else (f": {nyky_kommentti}" if nyky_kommentti else "")),
+                t("tj_kommentti", kieli) + (f": {nyky_kommentti[:40]}…" if len(nyky_kommentti) > 40 else (f": {nyky_kommentti}" if nyky_kommentti else "")),
                 expanded=bool(nyky_kommentti),
             ):
                 uusi_kommentti = st.text_area(
-                    "Kommentti työntekijälle",
+                    t("tj_kommentti", kieli),
                     value=nyky_kommentti,
                     key=f"tj_km_{btn_id}",
-                    placeholder="esim. Tarkista tiistain tunnit, merkitty 10h mutta työmaa sulki 16:00…",
+                    placeholder=t("tj_kommentti_ph", kieli),
                     height=80,
                     label_visibility="collapsed",
                 )
                 k1, k2 = st.columns([1, 4])
-                if k1.button("💾 Tallenna", key=f"tj_tall_{btn_id}"):
+                if k1.button(t("tj_kommentti_tall", kieli), key=f"tj_tall_{btn_id}"):
                     rv["tj_kommentti"] = uusi_kommentti
                     tallenna_ali_tunnit(projekti, ali_rivit)
-                    st.success("Kommentti tallennettu.")
+                    st.success(t("kommentti_tall", kieli))
                     st.rerun()
-                if nyky_kommentti and k2.button("🗑️ Poista kommentti", key=f"tj_del_{btn_id}"):
+                if nyky_kommentti and k2.button(t("tj_kommentti_del", kieli), key=f"tj_del_{btn_id}"):
                     rv["tj_kommentti"] = ""
                     tallenna_ali_tunnit(projekti, ali_rivit)
                     st.rerun()
@@ -564,7 +582,7 @@ with tab_vkoyht:
         n_hyv = sum(1 for r in vko_rivit if r.get("hyvaksynta_tila") == "hyvaksytty")
         n_sel = sum(1 for r in vko_rivit if r.get("hyvaksynta_tila") == "selvitys")
         n_odo = len(vko_rivit) - n_hyv - n_sel
-        st.caption(f"✅ {n_hyv} hyväksytty &nbsp;·&nbsp; ⚠️ {n_sel} selvitystä &nbsp;·&nbsp; 🔵 {n_odo} odottaa")
+        st.caption(f"✅ {n_hyv} {t('hyv_yht',kieli)} &nbsp;·&nbsp; ⚠️ {n_sel} {t('sel_yht',kieli)} &nbsp;·&nbsp; 🔵 {n_odo} {t('odo_yht',kieli)}")
 
         # Metriikat
         st.divider()
@@ -574,26 +592,26 @@ with tab_vkoyht:
              else (r.get("kiintea_hinta") or 0) if r.get("laskutustapa")=="kiintea"
              else 0) for r in vko_rivit)
         c1,c2,c3 = st.columns(3)
-        c1.metric("Tekijöitä", len(vko_rivit))
-        c2.metric("Tunteja yht.", f"{tot_h:.1f} h")
-        c3.metric("Summa yht.", f"{tot_eur:,.0f} €" if tot_eur else "–")
+        c1.metric(t("tekijoita", kieli), len(vko_rivit))
+        c2.metric(t("tunteja_yht", kieli), f"{tot_h:.1f} h")
+        c3.metric(t("summa_yht", kieli), f"{tot_eur:,.0f} €" if tot_eur else "–")
 
         # Raportti
         st.divider()
         c1, c2 = st.columns([3,1])
-        c1.markdown("**📄 Lataa viikkoraportti** — tulosta PDF:nä selaimessa")
-        if c2.button("Luo raportti", type="primary"):
+        c1.markdown(f"**{t('raportti_ohje', kieli)}**")
+        if c2.button(t("luo_raportti", kieli), type="primary"):
             xlsx = luo_viikkoraportti(
                 rivit=ali_rivit, viikko=int(viikko), vuosi=int(vuosi),
                 projekti=projekti, yritys="Uudenmaan Asbestipurku Oy")
             nm = f"Ali-tuntikirja_vko{viikko}_{_projekti_slug(projekti)}.xlsx"
-            st.download_button("⬇️ Lataa Excel", data=xlsx, file_name=nm,
+            st.download_button(t("lataa_excel", kieli), data=xlsx, file_name=nm,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
         # Poisto
-        with st.expander("🗑️ Poista kirjaus"):
+        with st.expander(t("poista_kirjaus", kieli)):
             va = {f"{r['nimi']} – {r.get('yht_h',0):.1f}h": r["id"] for r in vko_rivit}
-            pl = st.selectbox("Kirjaus", list(va.keys()))
+            pl = st.selectbox(t("kirjaus", kieli), list(va.keys()))
             if st.button("Poista", type="secondary"):
                 ali_rivit = [r for r in ali_rivit if r["id"] != va[pl]]
                 tallenna_ali_tunnit(projekti, ali_rivit)
@@ -603,13 +621,12 @@ with tab_vkoyht:
 # TEKIJÄLISTA — aliurakoitsijoiden hallinta
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_tekijat:
-    st.subheader("Aliurakoitsijoiden hallinta")
-    st.caption("Lisää tekijät kerran — sen jälkeen ne näkyvät pikasyötössä automaattisesti.")
+    st.subheader(t("tab_tekijat", kieli))
+    st.caption(t("tekijat_ohje", kieli))
 
     # Näytä nykyinen lista
     if tyontekijat_lista:
         df_tek = pd.DataFrame(tyontekijat_lista)
-        # Näytä siisti versio
         naytto_cols = ["nimi","yritys","laskutustapa","tuntihinta","kiintea_hinta"]
         naytto_cols = [c for c in naytto_cols if c in df_tek.columns]
         naytto = df_tek[naytto_cols].copy()
@@ -618,41 +635,39 @@ with tab_tekijat:
         st.divider()
 
     # Lisää uusi
-    with st.expander("➕ Lisää aliurakoitsija", expanded=len(tyontekijat_lista)==0):
+    with st.expander(t("lisaa_tekija", kieli), expanded=len(tyontekijat_lista)==0):
         t1, t2 = st.columns(2)
-        t_nimi  = t1.text_input("Nimi", key="t_nimi")
-        t_yrit  = t1.text_input("Yritys", key="t_yrit")
-        t_lp    = t2.selectbox("Laskutustapa",
-                               ["Vain tunnit","Tuntihinta (€/h)","Kiinteä hinta (€)"],
-                               key="t_lp")
+        t_nimi = t1.text_input(t("nimi", kieli), key="t_nimi")
+        t_yrit = t1.text_input(t("yritys", kieli), key="t_yrit")
+        t_lp   = t2.selectbox(t("laskutustapa", kieli), LASK_TAVAT, key="t_lp")
         t_th, t_kh = None, None
-        if t_lp == "Tuntihinta (€/h)":
+        if t_lp == LASK_TAVAT[1]:   # tuntihinta
             t_th = t2.number_input("€/h", 0.0, step=1.0, value=38.0, key="t_th")
-        elif t_lp == "Kiinteä hinta (€)":
-            t_kh = t2.number_input("Kiinteä hinta (€)", 0.0, step=10.0, key="t_kh")
+        elif t_lp == LASK_TAVAT[2]: # kiinteä
+            t_kh = t2.number_input(t("kiintea_hinta", kieli), 0.0, step=10.0, key="t_kh")
 
-        if st.button("Lisää listalle", type="primary", key="t_lisaa"):
+        if st.button(t("lisaa", kieli), type="primary", key="t_lisaa"):
             if not t_nimi:
-                st.error("Syötä nimi.")
-            elif any(t["nimi"] == t_nimi for t in tyontekijat_lista):
-                st.warning(f"{t_nimi} on jo listalla.")
+                st.error(t("syota_nimi", kieli))
+            elif any(tk["nimi"] == t_nimi for tk in tyontekijat_lista):
+                st.warning(f"{t_nimi} {t('jo_listalla', kieli)}")
             else:
-                lm = {"Vain tunnit":"tunnit","Tuntihinta (€/h)":"tuntihinta","Kiinteä hinta (€)":"kiintea"}
+                lm = {LASK_TAVAT[0]:"tunnit", LASK_TAVAT[1]:"tuntihinta", LASK_TAVAT[2]:"kiintea"}
                 tyontekijat_lista.append({
                     "nimi": t_nimi, "yritys": t_yrit,
-                    "laskutustapa": lm[t_lp],
+                    "laskutustapa": lm.get(t_lp, "tunnit"),
                     "tuntihinta": t_th, "kiintea_hinta": t_kh,
                 })
                 _tallenna_tyontekijat(tyontekijat_lista)
-                st.success(f"✅ {t_nimi} lisätty!")
+                st.success(f"✅ {t_nimi}")
                 st.rerun()
 
     # Poista listalta
     if tyontekijat_lista:
-        with st.expander("🗑️ Poista listalta"):
-            nimet_p = [t["nimi"] for t in tyontekijat_lista]
-            poistettava = st.selectbox("Tekijä", nimet_p, key="t_poisto")
-            if st.button("Poista listalta", type="secondary", key="t_poista"):
-                tyontekijat_lista = [t for t in tyontekijat_lista if t["nimi"] != poistettava]
+        with st.expander(t("poista_tekija", kieli)):
+            nimet_p = [tk["nimi"] for tk in tyontekijat_lista]
+            poistettava = st.selectbox(t("tekija", kieli), nimet_p, key="t_poisto")
+            if st.button(t("poista_listalta", kieli), type="secondary", key="t_poista"):
+                tyontekijat_lista = [tk for tk in tyontekijat_lista if tk["nimi"] != poistettava]
                 _tallenna_tyontekijat(tyontekijat_lista)
                 st.rerun()
