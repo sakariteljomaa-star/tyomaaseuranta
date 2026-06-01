@@ -210,6 +210,22 @@ with tab_pikasyotto:
             key=f"pikasyotto_{viikko}_{vuosi}",
         )
 
+        # Työnjohtajan kommentit pikasyötössä (vain jos on)
+        kommentit = [(t["nimi"], next((r.get("tj_kommentti","") for r in ali_rivit
+                      if r.get("viikko")==int(viikko) and r.get("vuosi",int(vuosi))==int(vuosi)
+                      and r.get("nimi")==t["nimi"]), ""))
+                     for t in tyontekijat_lista]
+        kommentit_olemassa = [k for k in kommentit if k[1].strip()]
+        if kommentit_olemassa:
+            st.markdown("---")
+            for nimi, km in kommentit_olemassa:
+                st.markdown(
+                    f"<div style='background:#FFF3CD;border-left:4px solid #FFC107;"
+                    f"border-radius:4px;padding:8px 12px;margin:3px 0;font-size:0.9em'>"
+                    f"💬 <b>{nimi}:</b> {km}</div>",
+                    unsafe_allow_html=True,
+                )
+
         # Yhteensä-rivi
         yht_per_paiva = {po: df_muokattu[po].sum() for po in paiva_otsikot}
         yht_kaikki    = sum(yht_per_paiva.values())
@@ -295,6 +311,20 @@ with tab_yksittainen:
             valittu_nimi = st.selectbox("Tekijä", nimet)
             t_info = next((t for t in tyontekijat_lista if t["nimi"] == valittu_nimi), {})
             st.caption(f"Yritys: {t_info.get('yritys','–')}")
+
+            # Työnjohtajan kommentti tällä tekijällä tälle viikolle
+            nyky_rv = next((r for r in ali_rivit
+                            if r.get("viikko")==int(viikko)
+                            and r.get("vuosi",int(vuosi))==int(vuosi)
+                            and r.get("nimi")==valittu_nimi), {})
+            yk_kommentti = nyky_rv.get("tj_kommentti","")
+            if yk_kommentti:
+                st.markdown(
+                    f"<div style='background:#FFF3CD;border-left:4px solid #FFC107;"
+                    f"border-radius:4px;padding:8px 10px;font-size:0.88em;margin:6px 0'>"
+                    f"💬 <b>Työnjohtajan huomio:</b><br>{yk_kommentti}</div>",
+                    unsafe_allow_html=True,
+                )
 
             yk_kat = st.selectbox("Kategoria", KATEGORIAT,
                                   index=KATEGORIAT.index(oletus_kat), key="yk_kat")
@@ -500,6 +530,31 @@ with tab_vkoyht:
                 if uusi_hm != hyv_hm:
                     rv["hyvaksynta_huomio"] = uusi_hm
                     hyv_muutettu = True
+
+            # ── Työnjohtajan kommentti ────────────────────────────────────────
+            nyky_kommentti = rv.get("tj_kommentti", "")
+            with st.expander(
+                f"💬 Työnjohtajan kommentti" + (f": {nyky_kommentti[:40]}…" if len(nyky_kommentti) > 40 else (f": {nyky_kommentti}" if nyky_kommentti else "")),
+                expanded=bool(nyky_kommentti),
+            ):
+                uusi_kommentti = st.text_area(
+                    "Kommentti työntekijälle",
+                    value=nyky_kommentti,
+                    key=f"tj_km_{btn_id}",
+                    placeholder="esim. Tarkista tiistain tunnit, merkitty 10h mutta työmaa sulki 16:00…",
+                    height=80,
+                    label_visibility="collapsed",
+                )
+                k1, k2 = st.columns([1, 4])
+                if k1.button("💾 Tallenna", key=f"tj_tall_{btn_id}"):
+                    rv["tj_kommentti"] = uusi_kommentti
+                    tallenna_ali_tunnit(projekti, ali_rivit)
+                    st.success("Kommentti tallennettu.")
+                    st.rerun()
+                if nyky_kommentti and k2.button("🗑️ Poista kommentti", key=f"tj_del_{btn_id}"):
+                    rv["tj_kommentti"] = ""
+                    tallenna_ali_tunnit(projekti, ali_rivit)
+                    st.rerun()
 
         if hyv_muutettu:
             tallenna_ali_tunnit(projekti, ali_rivit)
