@@ -179,138 +179,119 @@ tab_pikasyotto, tab_yksittainen, tab_vkoyht, tab_tekijat = st.tabs([
 # PIKASYÖTTÖ — kaikki tekijät kerralla taulukossa
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_pikasyotto:
-    st.subheader(f"Viikko {viikko} / {vuosi} — pikasyöttö")
-    st.caption("Täytä taulukko ja paina Tallenna. Tyhjät = 0 h.")
+    st.subheader(f"{tr('viikko', kieli)} {viikko} / {vuosi}")
 
     if not tyontekijat_lista:
         st.info(tr("ei_tekijoita", kieli))
     else:
-        # Rakenna syöttötaulukko
-        # Hae nykyiset tallennukset tälle viikolle esitäyttöä varten
         vko_nyky = {r["nimi"]: r for r in ali_rivit
-                    if r.get("viikko") == int(viikko)}
+                    if r.get("viikko") == int(viikko)
+                    and r.get("vuosi", int(vuosi)) == int(vuosi)}
 
-        paiva_otsikot = [f"{P}\n{p.strftime('%-d.%-m.')}" for P, p in zip(PAIVAT, paivat)]
+        pika_tunnit    = {}  # {nimi: {pk: float}}
+        pika_kategoriat = {}  # {nimi: str}
+        pika_huomiot   = {}  # {nimi: {pk: str}}
 
-        # Luo DataFrame esitäytöllä
-        rivit_data = []
-        for t in tyontekijat_lista:
-            nimi = t["nimi"]
-            nyky = vko_nyky.get(nimi, {})
-            rivi = {"Nimi": nimi, "Yritys": t.get("yritys", "")}
-            for pk, po in zip(PAIVA_AVAIN, paiva_otsikot):
-                rivi[po] = float(nyky.get(pk, 0) or 0)
-            rivi["Kategoria"] = nyky.get("kategoria", oletus_kat)
-            rivit_data.append(rivi)
+        for tk in tyontekijat_lista:
+            nimi  = tk["nimi"]
+            nyky  = vko_nyky.get(nimi, {})
+            nyky_hm = nyky.get("huomiot", {})
 
-        df_syotto = pd.DataFrame(rivit_data)
+            # ── Tekijän otsikko ──────────────────────────────────────────
+            tila_nyky = nyky.get("hyvaksynta_tila", "")
+            badge = f" {_tila_badge(tila_nyky, kieli)}" if tila_nyky else ""
+            st.markdown(f"**{nimi}**{badge}")
+            if tk.get("yritys"):
+                st.caption(tk["yritys"])
 
-        # Kategoria-sarake: selectbox-valinnat
-        kategoria_valinnat = {r["Nimi"]: r["Kategoria"] for r in rivit_data}
-
-        # Päivä-sarakkeiden config
-        sarake_config = {
-            "Nimi":     st.column_config.TextColumn(tr("taulukko_nimi",kieli), disabled=True, width="medium"),
-            "Yritys":   st.column_config.TextColumn(tr("taulukko_yritys",kieli), disabled=True, width="medium"),
-            "Kategoria": st.column_config.SelectboxColumn(
-                tr("kategoria",kieli), options=KATEGORIAT, width="small"),
-        }
-        for po in paiva_otsikot:
-            sarake_config[po] = st.column_config.NumberColumn(
-                po, min_value=0.0, max_value=24.0, step=0.5, format="%.1f", width="small")
-
-        df_muokattu = st.data_editor(
-            df_syotto,
-            column_config=sarake_config,
-            hide_index=True,
-            use_container_width=True,
-            key=f"pikasyotto_{viikko}_{vuosi}",
-        )
-
-        # Työnjohtajan kommentit pikasyötössä (vain jos on)
-        kommentit = [(t["nimi"], next((r.get("tj_kommentti","") for r in ali_rivit
-                      if r.get("viikko")==int(viikko) and r.get("vuosi",int(vuosi))==int(vuosi)
-                      and r.get("nimi")==t["nimi"]), ""))
-                     for t in tyontekijat_lista]
-        kommentit_olemassa = [k for k in kommentit if k[1].strip()]
-        if kommentit_olemassa:
-            st.markdown("---")
-            for nimi, km in kommentit_olemassa:
+            # Työnjohtajan kommentti (vain luku)
+            km = nyky.get("tj_kommentti", "")
+            if km:
                 st.markdown(
                     f"<div style='background:#FFF3CD;border-left:4px solid #FFC107;"
-                    f"border-radius:4px;padding:8px 12px;margin:3px 0;font-size:0.9em'>"
-                    f"💬 <b>{nimi}:</b> {km}</div>",
+                    f"border-radius:4px;padding:6px 10px;margin:2px 0;font-size:0.88em'>"
+                    f"💬 {km}</div>",
                     unsafe_allow_html=True,
                 )
 
-        # Yhteensä-rivi
-        yht_per_paiva = {po: df_muokattu[po].sum() for po in paiva_otsikot}
-        yht_kaikki    = sum(yht_per_paiva.values())
-        cols = st.columns(len(PAIVAT) + 3)
-        cols[0].caption("**YHT.**")
-        cols[1].caption("")
-        for i, (po, yht) in enumerate(yht_per_paiva.items()):
-            cols[i+2].metric("", f"{yht:.1f}h" if yht else "–")
-        cols[-1].metric("Kaikki", f"{yht_kaikki:.1f} h")
+            # ── Kategoria ────────────────────────────────────────────────
+            kat_nyky = nyky.get("kategoria", oletus_kat)
+            pika_kategoriat[nimi] = st.selectbox(
+                tr("kategoria", kieli), KATEGORIAT,
+                index=KATEGORIAT.index(kat_nyky) if kat_nyky in KATEGORIAT else 0,
+                key=f"pika_kat_{nimi}_{viikko}_{vuosi}",
+                label_visibility="collapsed",
+            )
 
-        st.divider()
-
-        # ── Päiväkohtaiset huomiot pikasyötössä ──────────────────────────────
-        with st.expander(tr("pv_huomiot", kieli), expanded=False):
-            st.caption(tr("tunnit_pv", kieli))
-            pika_huomiot = {}  # {nimi: {pk: teksti}}
-            for t in tyontekijat_lista:
-                nimi = t["nimi"]
-                nyky_hm = next(
-                    (r.get("huomiot", {}) for r in ali_rivit
-                     if r.get("viikko") == int(viikko)
-                     and r.get("vuosi", int(vuosi)) == int(vuosi)
-                     and r.get("nimi") == nimi),
-                    {}
+            # ── Tunnit (number_input per päivä — toimii puhelimella) ──────
+            h_cols = st.columns(7)
+            pika_tunnit[nimi] = {}
+            for i, (P, pk, p) in enumerate(zip(PAIVAT_NYK, PAIVA_AVAIN, paivat)):
+                oletus_h = float(nyky.get(pk, 0) or 0)
+                pika_tunnit[nimi][pk] = h_cols[i].number_input(
+                    f"{P} {p.strftime('%-d.%-m.')}",
+                    min_value=0.0, max_value=24.0,
+                    value=oletus_h, step=0.5,
+                    key=f"pika_{nimi}_{pk}_{viikko}_{vuosi}",
                 )
-                st.markdown(f"**{nimi}**")
+
+            yht = sum(pika_tunnit[nimi].values())
+            st.caption(f"{tr('yht_tunnit', kieli)}: **{yht:.1f} h**")
+
+            # ── Päiväkohtaiset huomiot ────────────────────────────────────
+            with st.expander(tr("pv_huomiot", kieli), expanded=False):
                 hm_cols = st.columns(7)
                 pika_huomiot[nimi] = {}
-                for i, (P, pk, p) in enumerate(zip(PAIVAT, PAIVA_AVAIN, paivat)):
+                for i, (P, pk, p) in enumerate(zip(PAIVAT_NYK, PAIVA_AVAIN, paivat)):
                     pika_huomiot[nimi][pk] = hm_cols[i].text_input(
                         f"{P} {p.strftime('%-d.%-m.')}",
                         value=nyky_hm.get(pk, ""),
-                        key=f"pika_hm_{nimi}_{pk}",
+                        key=f"pika_hm_{nimi}_{pk}_{viikko}_{vuosi}",
                         placeholder="–",
+                        label_visibility="visible",
                     )
 
-        if st.button(tr("tallenna_kaikki", kieli), type="primary", use_container_width=True):
-            tallennettu = 0
-            for _, row in df_muokattu.iterrows():
-                nimi = row["Nimi"]
-                tunnit = {pk: float(row[po]) for pk, po in zip(PAIVA_AVAIN, paiva_otsikot)}
-                yht_h  = sum(tunnit.values())
-                t_info = next((t for t in tyontekijat_lista if t["nimi"] == nimi), {})
+            st.divider()
 
+        # ── Kokonaissumma + Tallenna ──────────────────────────────────────
+        yht_kaikki = sum(sum(v.values()) for v in pika_tunnit.values())
+        st.metric(tr("yht_tunnit", kieli), f"{yht_kaikki:.1f} h")
+
+        if st.button(tr("tallenna_kaikki", kieli), type="primary", use_container_width=True):
+            for tk in tyontekijat_lista:
+                nimi   = tk["nimi"]
+                tunnit = pika_tunnit[nimi]
+                yht_h  = sum(tunnit.values())
                 uusi = {
-                    "id":        f"{viikko}_{vuosi}_{nimi}".replace(" ","_"),
-                    "viikko":    int(viikko),
-                    "vuosi":     int(vuosi),
-                    "nimi":      nimi,
-                    "yritys":    row["Yritys"],
-                    "kategoria": row["Kategoria"],
+                    "id":           f"{viikko}_{vuosi}_{nimi}".replace(" ","_"),
+                    "viikko":       int(viikko),
+                    "vuosi":        int(vuosi),
+                    "nimi":         nimi,
+                    "yritys":       tk.get("yritys", ""),
+                    "kategoria":    pika_kategoriat[nimi],
                     **tunnit,
-                    "yht_h":          yht_h,
-                    "laskutustapa":   t_info.get("laskutustapa", "tunnit"),
-                    "tuntihinta":     t_info.get("tuntihinta"),
-                    "kiintea_hinta":  t_info.get("kiintea_hinta"),
-                    "huomio":         "",
-                    "huomiot":        pika_huomiot.get(nimi, {}),
+                    "yht_h":        yht_h,
+                    "laskutustapa": tk.get("laskutustapa", "tunnit"),
+                    "tuntihinta":   tk.get("tuntihinta"),
+                    "kiintea_hinta":tk.get("kiintea_hinta"),
+                    "huomio":       "",
+                    "huomiot":      pika_huomiot.get(nimi, {}),
+                    # Säilytä olemassa oleva hyväksyntä- ja kommenttidata
+                    "hyvaksynta_tila":   vko_nyky.get(nimi, {}).get("hyvaksynta_tila", "odottaa"),
+                    "hyvaksynta_pvm":    vko_nyky.get(nimi, {}).get("hyvaksynta_pvm", ""),
+                    "hyvaksynta_klo":    vko_nyky.get(nimi, {}).get("hyvaksynta_klo", ""),
+                    "hyvaksynta_kuka":   vko_nyky.get(nimi, {}).get("hyvaksynta_kuka", ""),
+                    "hyvaksynta_huomio": vko_nyky.get(nimi, {}).get("hyvaksynta_huomio", ""),
+                    "tj_kommentti":      vko_nyky.get(nimi, {}).get("tj_kommentti", ""),
                 }
                 ali_rivit = [r for r in ali_rivit
                              if not (r.get("viikko") == int(viikko)
                                      and r.get("vuosi", int(vuosi)) == int(vuosi)
                                      and r.get("nimi") == nimi)]
                 ali_rivit.append(uusi)
-                tallennettu += 1
 
             tallenna_ali_tunnit(projekti, ali_rivit)
-            st.success(f"{tr('tallennettu', kieli)}: {tallennettu} — {tr('viikko', kieli)} {viikko}/{vuosi}")
+            st.success(f"{tr('tallennettu', kieli)}: {len(tyontekijat_lista)} — {tr('viikko', kieli)} {viikko}/{vuosi}")
             st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
