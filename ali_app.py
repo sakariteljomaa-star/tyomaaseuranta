@@ -27,6 +27,25 @@ PAIVAT      = ["Ma","Ti","Ke","To","Pe","La","Su"]
 PAIVA_AVAIN = ["ma","ti","ke","to","pe","la","su"]
 KATEGORIAT  = ["Urakka","Lisätyö","Vesivahinko"]
 
+# ── Hyväksyntätilat ───────────────────────────────────────────────────────────
+TILAT = {
+    "odottaa":    {"emoji": "🔵", "label": "Odottaa hyväksyntää", "väri": "#E3F0FF", "reuna": "#1E88E5"},
+    "hyvaksytty": {"emoji": "✅", "label": "Hyväksytty",          "väri": "#E8F5E9", "reuna": "#43A047"},
+    "selvitys":   {"emoji": "⚠️", "label": "Selvitys vaaditaan",  "väri": "#FFF8E1", "reuna": "#F9A825"},
+}
+
+def _tila_css(tila: str) -> str:
+    t = TILAT.get(tila, TILAT["odottaa"])
+    return (
+        f"background-color:{t['väri']};"
+        f"border-left:5px solid {t['reuna']};"
+        f"border-radius:6px;padding:10px 14px;margin:4px 0;"
+    )
+
+def _tila_badge(tila: str) -> str:
+    t = TILAT.get(tila, TILAT["odottaa"])
+    return f"{t['emoji']} {t['label']}"
+
 def _lataa_tyontekijat() -> list:
     if TYONTEKIJAT_POLKU.exists():
         return json.loads(TYONTEKIJAT_POLKU.read_text(encoding="utf-8"))
@@ -394,6 +413,7 @@ with tab_vkoyht:
                 rivi[po] = h if h else ""
             rivi["Yht (h)"]   = yht
             rivi["Summa (€)"] = f"{summa:,.0f}" if summa else "–"
+            rivi["Tila"]      = _tila_badge(rv.get("hyvaksynta_tila","odottaa"))
             tbl.append(rivi)
 
         df_yht = pd.DataFrame(tbl)
@@ -416,7 +436,83 @@ with tab_vkoyht:
                         for P, p, teksti in merkinnat:
                             st.caption(f"{P} {p.strftime('%-d.%-m.')}: {teksti}")
 
+        # ── Hyväksyntä ────────────────────────────────────────────────────────
+        st.divider()
+        st.markdown("### 🔏 Hyväksyntä")
+
+        hyv_muutettu = False
+        for rv in sorted(vko_rivit, key=lambda r: r.get("yritys","")):
+            tila     = rv.get("hyvaksynta_tila", "odottaa")
+            t        = TILAT.get(tila, TILAT["odottaa"])
+            hyv_pvm  = rv.get("hyvaksynta_pvm", "")
+            hyv_klo  = rv.get("hyvaksynta_klo", "")
+            hyv_kuka = rv.get("hyvaksynta_kuka", "")
+            hyv_hm   = rv.get("hyvaksynta_huomio", "")
+            yht_h    = rv.get("yht_h", 0)
+
+            # Värillinen kortti
+            aikaleima = f" · {hyv_kuka} {hyv_pvm} {hyv_klo}" if hyv_pvm else ""
+            st.markdown(
+                f"<div style='{_tila_css(tila)}'>"
+                f"<b>{t['emoji']} {rv['nimi']}</b> &nbsp;·&nbsp; {rv.get('yritys','')} "
+                f"&nbsp;·&nbsp; {yht_h:.1f} h"
+                f"<span style='color:#888;font-size:0.85em'>{aikaleima}</span>"
+                + (f"<br><span style='color:#B7860B;font-size:0.9em'>💬 {hyv_hm}</span>" if hyv_hm else "")
+                + "</div>",
+                unsafe_allow_html=True,
+            )
+
+            # Hyväksyntänapit
+            btn_id = rv["id"].replace("-","_")
+            b1, b2, b3, b4 = st.columns([2, 2, 2, 4])
+
+            if b1.button("✅ Hyväksy", key=f"hyv_{btn_id}", use_container_width=True):
+                rv["hyvaksynta_tila"]   = "hyvaksytty"
+                rv["hyvaksynta_pvm"]    = date.today().strftime("%d.%m.%Y")
+                rv["hyvaksynta_klo"]    = __import__("datetime").datetime.now().strftime("%H:%M")
+                rv["hyvaksynta_kuka"]   = "Työnjohtaja"
+                rv["hyvaksynta_huomio"] = ""
+                hyv_muutettu = True
+
+            if b2.button("⚠️ Selvitys", key=f"sel_{btn_id}", use_container_width=True):
+                rv["hyvaksynta_tila"] = "selvitys"
+                rv["hyvaksynta_pvm"]  = date.today().strftime("%d.%m.%Y")
+                rv["hyvaksynta_klo"]  = __import__("datetime").datetime.now().strftime("%H:%M")
+                rv["hyvaksynta_kuka"] = "Työnjohtaja"
+                hyv_muutettu = True
+
+            if b3.button("🔄 Palauta", key=f"pal_{btn_id}", use_container_width=True):
+                rv["hyvaksynta_tila"]   = "odottaa"
+                rv["hyvaksynta_pvm"]    = ""
+                rv["hyvaksynta_klo"]    = ""
+                rv["hyvaksynta_kuka"]   = ""
+                rv["hyvaksynta_huomio"] = ""
+                hyv_muutettu = True
+
+            # Huomio-kenttä selvitys-tilassa
+            if tila == "selvitys":
+                uusi_hm = b4.text_input(
+                    "Selvityksen syy",
+                    value=hyv_hm,
+                    key=f"hm_{btn_id}",
+                    placeholder="Mikä vaatii selvitystä?",
+                )
+                if uusi_hm != hyv_hm:
+                    rv["hyvaksynta_huomio"] = uusi_hm
+                    hyv_muutettu = True
+
+        if hyv_muutettu:
+            tallenna_ali_tunnit(projekti, ali_rivit)
+            st.rerun()
+
+        # Yhteenveto hyväksyntätilanteesta
+        n_hyv = sum(1 for r in vko_rivit if r.get("hyvaksynta_tila") == "hyvaksytty")
+        n_sel = sum(1 for r in vko_rivit if r.get("hyvaksynta_tila") == "selvitys")
+        n_odo = len(vko_rivit) - n_hyv - n_sel
+        st.caption(f"✅ {n_hyv} hyväksytty &nbsp;·&nbsp; ⚠️ {n_sel} selvitystä &nbsp;·&nbsp; 🔵 {n_odo} odottaa")
+
         # Metriikat
+        st.divider()
         tot_h   = sum(r.get("yht_h",0) for r in vko_rivit)
         tot_eur = sum(
             (r.get("yht_h",0)*(r.get("tuntihinta") or 0) if r.get("laskutustapa")=="tuntihinta"

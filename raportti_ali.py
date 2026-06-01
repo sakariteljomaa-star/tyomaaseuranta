@@ -105,7 +105,7 @@ def luo_viikkoraportti(
 
     # ── Sarakeotsikit ─────────────────────────────────────────────────────────
     ws.row_dimensions[r].height = 36
-    otsikot = ["Nimi", "Yritys"] + PAIVAT + ["Yht\n(h)", "Kategoria", "Laskutus", "Hinta\n(€/h tai €)", "Summa\n(€)", "Huomio"]
+    otsikot = ["Nimi", "Yritys"] + PAIVAT + ["Yht\n(h)", "Kategoria", "Laskutus", "Hinta\n(€/h tai €)", "Summa\n(€)", "Tila", "Huomio"]
     for j, ot in enumerate(otsikot, 1):
         _otsikkosolu(ws, r, j, ot, tausta=SININEN, wrap=True)
     r += 1
@@ -186,7 +186,14 @@ def luo_viikkoraportti(
                 _datasolu(ws, r, 13, hinta if hinta else "", numero=bool(hinta))
                 _datasolu(ws, r, 14, summa if summa is not None else "", numero=bool(summa),
                           tausta=VIHREA if summa else None)
-                _datasolu(ws, r, 15, rv.get("huomio", ""))
+
+                # Hyväksyntätila värillä
+                hyv_tila = rv.get("hyvaksynta_tila", "odottaa")
+                hyv_label = {"hyvaksytty": "✅ Hyväksytty", "selvitys": "⚠️ Selvitys", "odottaa": "🔵 Odottaa"}.get(hyv_tila, "🔵 Odottaa")
+                hyv_väri  = {"hyvaksytty": "E8F5E9", "selvitys": "FFF8E1", "odottaa": "E3F0FF"}.get(hyv_tila, "E3F0FF")
+                _datasolu(ws, r, 15, hyv_label, tausta=hyv_väri)
+
+                _datasolu(ws, r, 16, rv.get("huomio", ""))
 
                 yr_yht_h += yht_h
                 if summa:
