@@ -143,8 +143,8 @@ def paivat(kieli: str = "fi") -> list:
 
 
 def kategoriat(kieli: str = "fi") -> list:
-    return [t("urakka", kieli), t("lisatyo", kieli), t("vesivahinko", kieli)]
+    return [tr("urakka", kieli), tr("lisatyo", kieli), tr("vesivahinko", kieli)]
 
 
 def laskutustavat(kieli: str = "fi") -> list:
-    return [t("vain_tunnit", kieli), t("tuntihinta", kieli), t("kiintea_hinta", kieli)]
+    return [tr("vain_tunnit", kieli), tr("tuntihinta", kieli), tr("kiintea_hinta", kieli)]
