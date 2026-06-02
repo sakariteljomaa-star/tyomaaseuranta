@@ -312,8 +312,9 @@ with tab_pikasyotto:
             lukittu   = _on_lukittu(nyky, rooli)
 
             if lukittu:
+                _css_hyv = _tila_css("hyvaksytty")
                 st.markdown(
-                    f"<div style='{_tila_css(\"hyvaksytty\")}'>"
+                    f"<div style='{_css_hyv}'>"
                     f"🔒 <b>{nimi}</b>{badge}"
                     f"<span style='color:#555;font-size:0.85em'> — tunnit lukittu hyväksynnän jälkeen</span>"
                     f"</div>",
@@ -478,8 +479,9 @@ with tab_yksittainen:
             yk_lukittu   = _on_lukittu(nyky, rooli)
 
             if yk_lukittu:
+                _css_hyv2 = _tila_css("hyvaksytty")
                 st.markdown(
-                    f"<div style='{_tila_css(\"hyvaksytty\")}'>"
+                    f"<div style='{_css_hyv2}'>"
                     f"🔒 Tunnit lukittu — työnjohtaja on hyväksynyt tämän viikon kirjaukset."
                     f"</div>",
                     unsafe_allow_html=True,
