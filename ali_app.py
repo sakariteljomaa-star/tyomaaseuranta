@@ -52,9 +52,9 @@ def _tila_badge(tila: str, kieli: str = "fi") -> str:
     td = TILAT.get(tila, TILAT["odottaa"])
     return f"{td['emoji']} {tr(td['tila_avain'], kieli)}"
 
-def _on_lukittu(rv: dict, rooli: str) -> bool:
-    """Palauttaa True jos kirjaus on hyväksytty eikä käyttäjä ole TJ."""
-    return rooli != "tj" and rv.get("hyvaksynta_tila") == "hyvaksytty"
+def _on_lukittu(rv: dict, voi_ohittaa: bool) -> bool:
+    """Palauttaa True jos kirjaus on hyväksytty eikä käyttäjällä ole ohitusoikeutta."""
+    return (not voi_ohittaa) and rv.get("hyvaksynta_tila") == "hyvaksytty"
 
 def _lataa_tyontekijat() -> list:
     if TYONTEKIJAT_POLKU.exists():
@@ -93,64 +93,18 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Roolikirjautuminen ─────────────────────────────────────────────────────────
+# ── Käyttäjähallinta ja kirjautuminen ──────────────────────────────────────────
 import random, string
+import auth as A
 
 def _luo_koodi(pituus=6):
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=pituus))
 
-def _hae_secrets():
-    try:
-        return st.secrets.get("auth", {})
-    except Exception:
-        return {}
-
-def _kirjautuminen():
-    """Palauttaa (rooli, projekti_nimi) tai pysäyttää sovelluksen."""
-    auth = _hae_secrets()
-    tj_salasana  = auth.get("tj_salasana", "")
-    ali_salasana = auth.get("ali_salasana", "")
-
-    # Paikallinen kehitys ilman secretsejä
-    if not tj_salasana and not ali_salasana:
-        return "tj", st.session_state.get("projekti_nimi", "")
-
-    # Jo kirjautunut
-    if st.session_state.get("rooli"):
-        return st.session_state["rooli"], st.session_state.get("projekti_nimi", "")
-
-    # Kirjautumissivu
-    st.markdown("## 👷 Aliurakoitsijoiden tuntikirja")
-    st.markdown("---")
-
-    valinta = st.radio("Kirjaudu sisään:", ["🔑 Työnjohtaja", "📋 Aliurakoitsija (projektikoodi)"],
-                       horizontal=True)
-
-    if valinta == "🔑 Työnjohtaja":
-        pw = st.text_input("Työnjohtajan salasana", type="password", key="tj_pw")
-        if st.button("Kirjaudu", type="primary", use_container_width=True):
-            if pw == tj_salasana:
-                st.session_state["rooli"] = "tj"
-                st.session_state["projekti_nimi"] = ""
-                st.rerun()
-            else:
-                st.error("Väärä salasana.")
-    else:
-        koodi = st.text_input("Projektikoodi (6 merkkiä)", max_chars=6,
-                              placeholder="esim. VALT26").strip().upper()
-        if st.button("Avaa projekti", type="primary", use_container_width=True):
-            projekti = hae_projekti_koodilla(koodi)
-            if projekti:
-                st.session_state["rooli"] = "ali"
-                st.session_state["projekti_nimi"] = projekti["nimi"]
-                st.session_state["projekti_koodi"] = koodi
-                st.rerun()
-            else:
-                st.error("Projektikoodi ei löydy. Tarkista koodi työnjohtajalta.")
-
-    st.stop()
-
-rooli, _proj_init = _kirjautuminen()
+kayttaja = A.kirjaudu_gate("Aliurakoitsijoiden tuntikirja")
+rooli    = kayttaja["rooli"]
+on_tj    = A.voi_hyvaksya(rooli)          # admin + työnjohtaja
+on_admin = A.voi_hallita_kayttajia(rooli)  # vain admin
+voi_muokata = A.voi_muokata_tunteja(rooli) # admin + tj + työntekijä
 
 # Kompakti CSS — isommat napit, siistimpi mobiililla
 st.markdown("""
@@ -184,37 +138,36 @@ with st.sidebar:
     kieli = st.session_state.get("kieli", "fi")
     st.divider()
 
-    # ── Projektivalinta roolien mukaan ────────────────────────────────────────
+    # ── Käyttäjä + projektivalinta roolien mukaan ─────────────────────────────
     rekisteri = lataa_projektirekisteri()
     aktiiviset = [p for p in rekisteri if p.get("tila") != "valmis"]
 
-    if rooli == "tj":
-        # Työnjohtaja: dropdown kaikista projekteista + uuden luonti
-        st.caption(f"🔑 Työnjohtaja")
-        proj_nimet = [p["nimi"] for p in aktiiviset]
-        proj_oletus = st.session_state.get("projekti_nimi", proj_nimet[0] if proj_nimet else "")
-        if proj_nimet:
-            valittu_idx = proj_nimet.index(proj_oletus) if proj_oletus in proj_nimet else 0
-            projekti = st.selectbox(tr("projekti", kieli), proj_nimet, index=valittu_idx)
-        else:
-            projekti = st.text_input(tr("projekti", kieli), value=proj_oletus,
-                                     placeholder=tr("projekti_ph", kieli))
-        st.session_state["projekti_nimi"] = projekti
+    st.caption(f"👤 **{kayttaja.get('nimi', kayttaja['tunnus'])}**  ·  {A.ROOLIT[rooli]['nimi']}")
 
-        if st.button("🔓 Kirjaudu ulos", use_container_width=True):
-            for k in ["rooli","projekti_nimi","projekti_koodi","kirjautunut"]:
-                st.session_state.pop(k, None)
-            st.rerun()
+    # Mitkä projektit käyttäjä saa nähdä
+    if A.nakee_kaikki_projektit(rooli):
+        sallitut = [p["nimi"] for p in aktiiviset]
     else:
-        # Aliurakoitsija: näkee vain oman projektinsa
-        projekti = st.session_state.get("projekti_nimi", "")
-        proj_info = next((p for p in rekisteri if p["nimi"] == projekti), {})
-        st.caption(f"📋 {projekti}")
-        st.caption(f"Koodi: `{proj_info.get('koodi','')}`")
-        if st.button("🔓 Kirjaudu ulos", use_container_width=True):
-            for k in ["rooli","projekti_nimi","projekti_koodi"]:
-                st.session_state.pop(k, None)
-            st.rerun()
+        # Työntekijä: vain hänelle määritellyt projektit (tyhjä = kaikki aktiiviset)
+        omat = kayttaja.get("projektit", [])
+        sallitut = [p["nimi"] for p in aktiiviset if not omat or p["nimi"] in omat]
+
+    proj_oletus = st.session_state.get("projekti_nimi", sallitut[0] if sallitut else "")
+    if sallitut:
+        valittu_idx = sallitut.index(proj_oletus) if proj_oletus in sallitut else 0
+        projekti = st.selectbox(tr("projekti", kieli), sallitut, index=valittu_idx)
+    elif A.voi_hallita_projekteja(rooli):
+        projekti = st.text_input(tr("projekti", kieli), value=proj_oletus,
+                                 placeholder=tr("projekti_ph", kieli))
+    else:
+        projekti = ""
+        st.warning("Ei sinulle määriteltyjä projekteja. Ota yhteys työnjohtajaan.")
+    st.session_state["projekti_nimi"] = projekti
+
+    if st.button("🔓 Kirjaudu ulos", use_container_width=True):
+        A.kirjaudu_ulos()
+        st.session_state.pop("projekti_nimi", None)
+        st.rerun()
 
     # Viikko ja vuosi
     tana = date.today()
@@ -236,7 +189,7 @@ with st.sidebar:
     st.divider()
 
     kat_oletus = asetukset.get("kategoria", KATEGORIAT[0] if KATEGORIAT else "Urakka")
-    if rooli == "tj":
+    if on_tj:
         # Työnjohtaja: voi lisätä väliaikaisen kategorian vapaasti
         oletus_kat = st.selectbox(tr("oletus_kat", kieli), KATEGORIAT,
                                   index=KATEGORIAT.index(kat_oletus) if kat_oletus in KATEGORIAT else 0)
@@ -252,9 +205,8 @@ with st.sidebar:
         oletus_kat = st.selectbox(tr("oletus_kat", kieli), KATEGORIAT, index=kat_idx)
 
 kieli = st.session_state.get("kieli", "fi")
-rooli_badge = "🔑 TJ" if rooli == "tj" else "📋"
 st.title(f"👷 {tr('app_title', kieli)}")
-st.caption(f"{tr('app_caption', kieli)}  ·  {rooli_badge}  ·  {projekti or '—'}")
+st.caption(f"{tr('app_caption', kieli)}  ·  {A.ROOLIT[rooli]['nimi']}  ·  {projekti or '—'}")
 
 _tallenna_asetukset({"projekti": projekti, "vuosi": int(vuosi),
                      "viikko": int(viikko), "kategoria": oletus_kat})
@@ -267,27 +219,37 @@ if not projekti:
 ali_rivit: list = lataa_ali_tunnit(projekti)
 
 # ── VÄLILEHDET — roolien mukaan ────────────────────────────────────────────────
-if rooli == "tj":
-    tab_pikasyotto, tab_yksittainen, tab_vkoyht, tab_tekijat, tab_projektit, tab_historia = st.tabs([
-        tr("tab_pikasyotto", kieli),
-        tr("tab_yksittainen", kieli),
-        tr("tab_vkoyht", kieli),
-        tr("tab_tekijat", kieli),
-        "📁 Projektit",
-        "📈 Historia",
-    ])
-else:
-    tab_pikasyotto, tab_yksittainen, tab_vkoyht = st.tabs([
-        tr("tab_pikasyotto", kieli),
-        tr("tab_yksittainen", kieli),
-        tr("tab_vkoyht", kieli),
-    ])
-    tab_tekijat = tab_projektit = tab_historia = None
+tab_pikasyotto = tab_yksittainen = tab_vkoyht = None
+tab_tekijat = tab_projektit = tab_historia = tab_kayttajat = None
+
+# Rakenna välilehtien nimet dynaamisesti roolin mukaan
+valilehti_nimet = []
+if voi_muokata:
+    valilehti_nimet += [tr("tab_pikasyotto", kieli), tr("tab_yksittainen", kieli)]
+valilehti_nimet += [tr("tab_vkoyht", kieli)]
+if on_tj:
+    valilehti_nimet += [tr("tab_tekijat", kieli), "📁 Projektit", "📈 Historia"]
+if on_admin:
+    valilehti_nimet += ["👤 Käyttäjät"]
+
+valilehdet = st.tabs(valilehti_nimet)
+_idx = 0
+if voi_muokata:
+    tab_pikasyotto = valilehdet[_idx]; _idx += 1
+    tab_yksittainen = valilehdet[_idx]; _idx += 1
+tab_vkoyht = valilehdet[_idx]; _idx += 1
+if on_tj:
+    tab_tekijat = valilehdet[_idx]; _idx += 1
+    tab_projektit = valilehdet[_idx]; _idx += 1
+    tab_historia = valilehdet[_idx]; _idx += 1
+if on_admin:
+    tab_kayttajat = valilehdet[_idx]; _idx += 1
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PIKASYÖTTÖ — kaikki tekijät kerralla taulukossa
 # ══════════════════════════════════════════════════════════════════════════════
-with tab_pikasyotto:
+if tab_pikasyotto is not None:
+  with tab_pikasyotto:
     st.subheader(f"{tr('viikko', kieli)} {viikko} / {vuosi}")
 
     if not tyontekijat_lista:
@@ -309,7 +271,7 @@ with tab_pikasyotto:
             # ── Tekijän otsikko ──────────────────────────────────────────
             tila_nyky = nyky.get("hyvaksynta_tila", "")
             badge     = f" {_tila_badge(tila_nyky, kieli)}" if tila_nyky else ""
-            lukittu   = _on_lukittu(nyky, rooli)
+            lukittu   = _on_lukittu(nyky, on_tj)
 
             if lukittu:
                 _css_hyv = _tila_css("hyvaksytty")
@@ -380,16 +342,16 @@ with tab_pikasyotto:
         # ── Kokonaissumma + Tallenna ──────────────────────────────────────
         yht_kaikki  = sum(sum(v.values()) for v in pika_tunnit.values())
         lukittu_lkm = sum(1 for tk in tyontekijat_lista
-                          if _on_lukittu(vko_nyky.get(tk["nimi"], {}), rooli))
+                          if _on_lukittu(vko_nyky.get(tk["nimi"], {}), on_tj))
         st.metric(tr("yht_tunnit", kieli), f"{yht_kaikki:.1f} h")
-        if lukittu_lkm and rooli != "tj":
+        if lukittu_lkm and not on_tj:
             st.caption(f"🔒 {lukittu_lkm} tekijän tunnit lukittu — vain työnjohtaja voi muuttaa")
 
         if st.button(tr("tallenna_kaikki", kieli), type="primary", use_container_width=True):
             for tk in tyontekijat_lista:
                 nimi   = tk["nimi"]
                 # Älä ylikirjoita lukittuja kirjauksia
-                if _on_lukittu(vko_nyky.get(nimi, {}), rooli):
+                if _on_lukittu(vko_nyky.get(nimi, {}), on_tj):
                     continue
                 tunnit = pika_tunnit[nimi]
                 yht_h  = sum(tunnit.values())
@@ -428,7 +390,8 @@ with tab_pikasyotto:
 # ══════════════════════════════════════════════════════════════════════════════
 # YKSITTÄINEN SYÖTTÖ
 # ══════════════════════════════════════════════════════════════════════════════
-with tab_yksittainen:
+if tab_yksittainen is not None:
+  with tab_yksittainen:
     st.subheader(tr("tab_yksittainen", kieli))
 
     nimet = [tk["nimi"] for tk in tyontekijat_lista]
@@ -476,7 +439,7 @@ with tab_yksittainen:
                          and r.get("vuosi", int(vuosi)) == int(vuosi)
                          and r.get("nimi") == valittu_nimi), {})
             nyky_huomiot = nyky.get("huomiot", {})
-            yk_lukittu   = _on_lukittu(nyky, rooli)
+            yk_lukittu   = _on_lukittu(nyky, on_tj)
 
             if yk_lukittu:
                 _css_hyv2 = _tila_css("hyvaksytty")
@@ -609,12 +572,12 @@ with tab_vkoyht:
                         for P, p, teksti in merkinnat:
                             st.caption(f"{P} {p.strftime('%-d.%-m.')}: {teksti}")
 
-        # ── Hyväksyntä ────────────────────────────────────────────────────────
-        st.divider()
-        st.markdown(f"### {tr('hyvaksynta', kieli)}")
-
+        # ── Hyväksyntä (vain työnjohtaja) ──────────────────────────────────────
         hyv_muutettu = False
-        for rv in sorted(vko_rivit, key=lambda r: r.get("yritys","")):
+        if on_tj:
+            st.divider()
+            st.markdown(f"### {tr('hyvaksynta', kieli)}")
+        for rv in (sorted(vko_rivit, key=lambda r: r.get("yritys","")) if on_tj else []):
             tila     = rv.get("hyvaksynta_tila", "odottaa")
             t        = TILAT.get(tila, TILAT["odottaa"])
             hyv_pvm  = rv.get("hyvaksynta_pvm", "")
@@ -1037,3 +1000,10 @@ if tab_historia is not None:
                     | Kesto | ~{arvio_h / df_h['tunnit_yht'].mean() * df_h['kesto_viikkoja'].mean():.1f} viikkoa |
                     | Tekijöitä | ~{arvio_h / df_h['tunnit_yht'].mean() * df_h['tekijoita'].mean():.1f} henkilöä |
                     """)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# KÄYTTÄJÄT (vain admin)
+# ══════════════════════════════════════════════════════════════════════════════
+if tab_kayttajat is not None:
+    with tab_kayttajat:
+        A.nayta_kayttajahallinta()
