@@ -107,6 +107,26 @@ def tallenna_palkat(projekti: str, rivit: list) -> None:
         _tallenna_json(projekti, data)
 
 
+def lataa_globaali(avain: str) -> list:
+    """Globaali (ei-projektikohtainen) data, esim. kalustorekisteri."""
+    if _pilvessa():
+        from storage_supabase import lataa_globaali as _lg
+        return _lg(avain)
+    polku = DATA_DIR / f"_{avain}.json"
+    if polku.exists():
+        return json.loads(polku.read_text(encoding="utf-8"))
+    return []
+
+
+def tallenna_globaali(avain: str, data: list) -> None:
+    if _pilvessa():
+        from storage_supabase import tallenna_globaali as _tg
+        _tg(avain, data)
+    else:
+        polku = DATA_DIR / f"_{avain}.json"
+        polku.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+
+
 def hae_projektit() -> list:
     """Palauttaa tallennettujen projektien nimet."""
     if _pilvessa():
