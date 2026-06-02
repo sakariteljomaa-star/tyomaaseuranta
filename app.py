@@ -20,28 +20,28 @@ from kansiotuonti import lue_kansio, oletus_kansio
 
 st.set_page_config(page_title="Työmaaseuranta", page_icon="🏗️", layout="wide")
 
-# ── Salasanasuojaus (arkaluonteinen taloustieto) ───────────────────────────────
-def _tarkista_kirjautuminen():
-    try:
-        oikea = st.secrets.get("auth", {}).get("salasana", "")
-    except Exception:
-        return  # Paikallinen ajo ilman secretsiä — ei vaadi salasanaa
-    if not oikea:
-        return
-    if st.session_state.get("kirjautunut"):
-        return
-    st.title("🔒 Työmaaseuranta")
-    st.caption("Kustannusseuranta — kirjaudu sisään")
-    pw = st.text_input("Salasana", type="password", key="login_pw")
-    if st.button("Kirjaudu", type="primary"):
-        if pw == oikea:
-            st.session_state["kirjautunut"] = True
-            st.rerun()
-        else:
-            st.error("Väärä salasana.")
+# ── Käyttäjähallinta ja roolitukset ────────────────────────────────────────────
+import auth as A
+
+kayttaja = A.kirjaudu_gate("Työmaaseuranta — Kustannusseuranta")
+rooli    = kayttaja["rooli"]
+on_admin = A.voi_hallita_kayttajia(rooli)
+
+# Kustannusseuranta on arkaluonteinen — työntekijä-rooli ei pääse
+if rooli == "tyontekija":
+    st.title("🔒 Ei käyttöoikeutta")
+    st.warning("Kustannusseuranta on tarkoitettu vain työnjohdolle ja kirjanpidolle. "
+               "Käytä tuntikirja-sovellusta.")
+    if st.button("🔓 Kirjaudu ulos"):
+        A.kirjaudu_ulos()
+        st.rerun()
     st.stop()
 
-_tarkista_kirjautuminen()
+with st.sidebar:
+    st.caption(f"👤 {kayttaja.get('nimi', kayttaja['tunnus'])}  ·  {A.ROOLIT[rooli]['nimi']}")
+    if st.button("🔓 Kirjaudu ulos", use_container_width=True, key="logout_btn"):
+        A.kirjaudu_ulos()
+        st.rerun()
 
 st.title("🏗️ Työmaaseuranta – Kustannusseuranta")
 st.caption("Uudenmaan Asbestipurku Oy")
@@ -163,9 +163,7 @@ def _nayta_kululaji(df_kaikki, kululaji, sarakkeet):
     st.markdown(f"**Yhteensä: {EURO(osa['summa'].sum())}**")
 
 # ── VÄLILEHDET ──────────────────────────────────────────────────────────────────
-(tab_yht, tab_myynti, tab_tunnit, tab_ali_tunnit,
- tab_palkat, tab_ostot_v, tab_jate, tab_ali,
- tab_kalusto, tab_kaikki) = st.tabs([
+_tab_nimet = [
     "📊 Yhteenveto",
     "💰 Myynti",
     "⏱️ Tuntiseuranta",
@@ -176,7 +174,15 @@ def _nayta_kululaji(df_kaikki, kululaji, sarakkeet):
     "👷 Aliurakoitsijat",
     "🔧 Kalusto",
     "📋 Kaikki rivit",
-])
+]
+if on_admin:
+    _tab_nimet.append("👤 Käyttäjät")
+
+_tabs = st.tabs(_tab_nimet)
+(tab_yht, tab_myynti, tab_tunnit, tab_ali_tunnit,
+ tab_palkat, tab_ostot_v, tab_jate, tab_ali,
+ tab_kalusto, tab_kaikki) = _tabs[:10]
+tab_kayttajat = _tabs[10] if on_admin else None
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MYYNTI
@@ -643,3 +649,10 @@ if dfs_osto_dl:
         nm = f"Kustannusseuranta_{(projekti or 'P').replace(' ','_').replace(',','')}.xlsx"
         st.download_button("⬇️ Lataa Excel", data=x, file_name=nm,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# KÄYTTÄJÄT (vain admin)
+# ══════════════════════════════════════════════════════════════════════════════
+if tab_kayttajat is not None:
+    with tab_kayttajat:
+        A.nayta_kayttajahallinta()
