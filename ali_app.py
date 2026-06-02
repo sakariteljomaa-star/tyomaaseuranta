@@ -52,6 +52,10 @@ def _tila_badge(tila: str, kieli: str = "fi") -> str:
     td = TILAT.get(tila, TILAT["odottaa"])
     return f"{td['emoji']} {tr(td['tila_avain'], kieli)}"
 
+def _on_lukittu(rv: dict, rooli: str) -> bool:
+    """Palauttaa True jos kirjaus on hyväksytty eikä käyttäjä ole TJ."""
+    return rooli != "tj" and rv.get("hyvaksynta_tila") == "hyvaksytty"
+
 def _lataa_tyontekijat() -> list:
     if TYONTEKIJAT_POLKU.exists():
         return json.loads(TYONTEKIJAT_POLKU.read_text(encoding="utf-8"))
@@ -304,10 +308,21 @@ with tab_pikasyotto:
 
             # ── Tekijän otsikko ──────────────────────────────────────────
             tila_nyky = nyky.get("hyvaksynta_tila", "")
-            badge = f" {_tila_badge(tila_nyky, kieli)}" if tila_nyky else ""
-            st.markdown(f"**{nimi}**{badge}")
-            if tk.get("yritys"):
-                st.caption(tk["yritys"])
+            badge     = f" {_tila_badge(tila_nyky, kieli)}" if tila_nyky else ""
+            lukittu   = _on_lukittu(nyky, rooli)
+
+            if lukittu:
+                st.markdown(
+                    f"<div style='{_tila_css(\"hyvaksytty\")}'>"
+                    f"🔒 <b>{nimi}</b>{badge}"
+                    f"<span style='color:#555;font-size:0.85em'> — tunnit lukittu hyväksynnän jälkeen</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(f"**{nimi}**{badge}")
+                if tk.get("yritys"):
+                    st.caption(tk["yritys"])
 
             # Työnjohtajan kommentti (vain luku)
             km = nyky.get("tj_kommentti", "")
@@ -326,6 +341,7 @@ with tab_pikasyotto:
                 index=KATEGORIAT.index(kat_nyky) if kat_nyky in KATEGORIAT else 0,
                 key=f"pika_kat_{nimi}_{viikko}_{vuosi}",
                 label_visibility="collapsed",
+                disabled=lukittu,
             )
 
             # ── Tunnit (number_input per päivä — toimii puhelimella) ──────
@@ -338,6 +354,7 @@ with tab_pikasyotto:
                     min_value=0.0, max_value=24.0,
                     value=oletus_h, step=0.5,
                     key=f"pika_{nimi}_{pk}_{viikko}_{vuosi}",
+                    disabled=lukittu,
                 )
 
             yht = sum(pika_tunnit[nimi].values())
@@ -351,6 +368,7 @@ with tab_pikasyotto:
                     pika_huomiot[nimi][pk] = hm_cols[i].text_input(
                         f"{P} {p.strftime('%-d.%-m.')}",
                         value=nyky_hm.get(pk, ""),
+                        disabled=lukittu,
                         key=f"pika_hm_{nimi}_{pk}_{viikko}_{vuosi}",
                         placeholder="–",
                         label_visibility="visible",
@@ -359,12 +377,19 @@ with tab_pikasyotto:
             st.divider()
 
         # ── Kokonaissumma + Tallenna ──────────────────────────────────────
-        yht_kaikki = sum(sum(v.values()) for v in pika_tunnit.values())
+        yht_kaikki  = sum(sum(v.values()) for v in pika_tunnit.values())
+        lukittu_lkm = sum(1 for tk in tyontekijat_lista
+                          if _on_lukittu(vko_nyky.get(tk["nimi"], {}), rooli))
         st.metric(tr("yht_tunnit", kieli), f"{yht_kaikki:.1f} h")
+        if lukittu_lkm and rooli != "tj":
+            st.caption(f"🔒 {lukittu_lkm} tekijän tunnit lukittu — vain työnjohtaja voi muuttaa")
 
         if st.button(tr("tallenna_kaikki", kieli), type="primary", use_container_width=True):
             for tk in tyontekijat_lista:
                 nimi   = tk["nimi"]
+                # Älä ylikirjoita lukittuja kirjauksia
+                if _on_lukittu(vko_nyky.get(nimi, {}), rooli):
+                    continue
                 tunnit = pika_tunnit[nimi]
                 yht_h  = sum(tunnit.values())
                 uusi = {
@@ -445,12 +470,20 @@ with tab_yksittainen:
 
         with col_oik:
             st.markdown(f"**{tr('tunnit_pv', kieli)}**")
-            # Hae esitäyttö
             nyky = next((r for r in ali_rivit
                          if r.get("viikko") == int(viikko)
                          and r.get("vuosi", int(vuosi)) == int(vuosi)
                          and r.get("nimi") == valittu_nimi), {})
             nyky_huomiot = nyky.get("huomiot", {})
+            yk_lukittu   = _on_lukittu(nyky, rooli)
+
+            if yk_lukittu:
+                st.markdown(
+                    f"<div style='{_tila_css(\"hyvaksytty\")}'>"
+                    f"🔒 Tunnit lukittu — työnjohtaja on hyväksynyt tämän viikon kirjaukset."
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
 
             cols_h = st.columns(7)
             h_arvot   = {}
@@ -463,6 +496,7 @@ with tab_yksittainen:
                     min_value=0.0, max_value=24.0,
                     value=oletus_h, step=0.5,
                     key=f"yk_{pk}",
+                    disabled=yk_lukittu,
                 )
                 h_huomiot[pk] = cols_h[i].text_input(
                     tr("huomio", kieli),
@@ -470,27 +504,30 @@ with tab_yksittainen:
                     key=f"yk_hm_{pk}",
                     placeholder=tr("huomio_ph", kieli),
                     label_visibility="collapsed",
+                    disabled=yk_lukittu,
                 )
 
             yht_h = sum(h_arvot.values())
 
-            # Pikasyöttönapit
-            st.markdown(f"**{tr('lisaa_tunnit', kieli)}**")
-            btn_cols = st.columns(5)
-            for lisays in [6, 7, 8, 9, 10]:
-                if btn_cols[lisays-6].button(f"+{lisays}h ark", key=f"btn_{lisays}"):
-                    for pk in ["ma","ti","ke","to","pe"]:
-                        h_arvot[pk] = float(lisays)
-                    yht_h = sum(h_arvot.values())
+            if not yk_lukittu:
+                st.markdown(f"**{tr('lisaa_tunnit', kieli)}**")
+                btn_cols = st.columns(5)
+                for lisays in [6, 7, 8, 9, 10]:
+                    if btn_cols[lisays-6].button(f"+{lisays}h ark", key=f"btn_{lisays}"):
+                        for pk in ["ma","ti","ke","to","pe"]:
+                            h_arvot[pk] = float(lisays)
+                        yht_h = sum(h_arvot.values())
 
-        huomio = st.text_input(tr("yleinen_huomio", kieli), key="yk_huomio")
+        huomio = st.text_input(tr("yleinen_huomio", kieli), key="yk_huomio",
+                               disabled=yk_lukittu)
 
         c1, c2 = st.columns(2)
         c1.metric("Tunnit yhteensä", f"{yht_h:.1f} h")
         if lp == "tuntihinta" and t_info.get("tuntihinta"):
             c2.metric("Summa", f"{yht_h * t_info['tuntihinta']:,.0f} €")
 
-        if st.button(tr("tallenna", kieli), type="primary", use_container_width=True, key="yk_tall"):
+        if st.button(tr("tallenna", kieli), type="primary", use_container_width=True,
+                     key="yk_tall", disabled=yk_lukittu):
             uusi = {
                 "id":       f"{viikko}_{vuosi}_{valittu_nimi}".replace(" ","_"),
                 "viikko":   int(viikko),
