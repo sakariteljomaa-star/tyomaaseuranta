@@ -231,9 +231,21 @@ with st.sidebar:
     st.caption(" · ".join(f"{P} {p.strftime('%-d.%-m.')}" for P, p in zip(PAIVAT_NYK, paivat)))
     st.divider()
 
-    kat_oletus = asetukset.get("kategoria", KATEGORIAT[0])
-    kat_idx    = KATEGORIAT.index(kat_oletus) if kat_oletus in KATEGORIAT else 0
-    oletus_kat = st.selectbox(tr("oletus_kat", kieli), KATEGORIAT, index=kat_idx)
+    kat_oletus = asetukset.get("kategoria", KATEGORIAT[0] if KATEGORIAT else "Urakka")
+    if rooli == "tj":
+        # Työnjohtaja: voi lisätä väliaikaisen kategorian vapaasti
+        oletus_kat = st.selectbox(tr("oletus_kat", kieli), KATEGORIAT,
+                                  index=KATEGORIAT.index(kat_oletus) if kat_oletus in KATEGORIAT else 0)
+        uusi_kat = st.text_input("Tai kirjoita oma kategoria",
+                                 placeholder="esim. Huoltotyö",
+                                 key="sb_uusi_kat")
+        if uusi_kat.strip():
+            oletus_kat = uusi_kat.strip()
+            if oletus_kat not in KATEGORIAT:
+                KATEGORIAT = KATEGORIAT + [oletus_kat]
+    else:
+        kat_idx    = KATEGORIAT.index(kat_oletus) if kat_oletus in KATEGORIAT else 0
+        oletus_kat = st.selectbox(tr("oletus_kat", kieli), KATEGORIAT, index=kat_idx)
 
 kieli = st.session_state.get("kieli", "fi")
 rooli_badge = "🔑 TJ" if rooli == "tj" else "📋"
@@ -795,7 +807,13 @@ if tab_projektit is not None:
                     KAIKKI_KUSTPAIKAT,
                     default=KAIKKI_KUSTPAIKAT,
                     key="np_kp",
-                    help="Valitse mitä kategorioita tässä projektissa käytetään",
+                    help="Valitse vakiokategoriat",
+                )
+                uusi_omat_kp = np2.text_input(
+                    "Omat kategoriat (pilkulla eroteltuna)",
+                    placeholder="esim. Huoltotyö, Siivous, Övertid",
+                    key="np_omat_kp",
+                    help="Lisää omia projektikohtaisia kategorioita vakioiden lisäksi",
                 )
                 uusi_th_oletus = np2.number_input(
                     "Oletustuntihinta (€/h)", value=38.0, step=0.5, key="np_th",
@@ -807,15 +825,17 @@ if tab_projektit is not None:
                     elif any(p["koodi"] == uusi_koodi for p in rekisteri):
                         st.error(f"Koodi {uusi_koodi} on jo käytössä. Valitse toinen.")
                     else:
+                        omat = [k.strip() for k in uusi_omat_kp.split(",") if k.strip()]
+                        kaikki_kp = uusi_kustpaikat + [k for k in omat if k not in uusi_kustpaikat]
                         rekisteri.append({
-                            "nimi":          uusi_nimi,
-                            "koodi":         uusi_koodi,
-                            "kuvaus":        uusi_kuvaus,
-                            "tilaaja":       uusi_tilaaja,
-                            "kustannuspaikat": uusi_kustpaikat or KAIKKI_KUSTPAIKAT,
+                            "nimi":              uusi_nimi,
+                            "koodi":             uusi_koodi,
+                            "kuvaus":            uusi_kuvaus,
+                            "tilaaja":           uusi_tilaaja,
+                            "kustannuspaikat":   kaikki_kp or KAIKKI_KUSTPAIKAT,
                             "tuntihinta_oletus": uusi_th_oletus,
-                            "luotu":         date.today().isoformat(),
-                            "tila":          "aktiivinen",
+                            "luotu":             date.today().isoformat(),
+                            "tila":              "aktiivinen",
                         })
                         tallenna_projektirekisteri(rekisteri)
                         st.success(f"✅ Projekti **{uusi_nimi}** luotu!  \n"
