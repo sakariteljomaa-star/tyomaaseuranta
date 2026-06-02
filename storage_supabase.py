@@ -1,57 +1,56 @@
 """
-Supabase-pohjainen tallennus — käytetään kun sovellus pyörii Streamlit Cloudissa.
-Paikallisesti käytetään storage.py:n JSON-tallennusta.
+Supabase-tallennus suorilla REST-kutsuilla (PostgREST API).
 
-Supabase-taulut (aja SQL Supabasen SQL Editorissa):
+EI käytä raskasta supabase-py -kirjastoa — vain `requests`. Tämä välttää
+kaikki supabase/httpx/gotrue/pydantic-versioristiriidat Streamlit Cloudissa.
 
-    create table projekti_data (
-      id          bigserial primary key,
-      projekti    text not null,
-      avain       text not null,
-      data        jsonb not null default '[]',
-      paivitetty  timestamptz default now(),
-      unique (projekti, avain)
-    );
-
-    create table globaali_data (
-      avain       text primary key,
-      data        jsonb not null default '[]',
-      paivitetty  timestamptz default now()
-    );
+Supabase-taulut (luotu jo SQL Editorissa):
+    projekti_data (projekti text, avain text, data jsonb, unique(projekti,avain))
+    globaali_data (avain text primary key, data jsonb)
 """
 
-import streamlit as st
 import json
+import streamlit as st
+import requests
 
 
-def _client():
-    """Luo Supabase-yhteyden Streamlit Secretsistä."""
-    from supabase import create_client
-    url = st.secrets["supabase"]["url"]
-    key = st.secrets["supabase"]["key"]
-    return create_client(url, key)
+def _conf():
+    """Palauttaa (base_url, headers) tai (None, None) jos ei konfiguroitu."""
+    try:
+        url = st.secrets["supabase"]["url"].rstrip("/")
+        key = st.secrets["supabase"]["key"]
+    except Exception:
+        return None, None
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+    }
+    return f"{url}/rest/v1", headers
 
 
 def on_pilvessa() -> bool:
-    """Tarkistaa onko Supabase-tunnukset konfigurattu."""
-    try:
-        return "supabase" in st.secrets and bool(st.secrets["supabase"].get("url"))
-    except Exception:
-        return False
+    base, _ = _conf()
+    return base is not None
 
 
 # ── Projektikohtainen data ─────────────────────────────────────────────────────
 
 def lataa_projekti(projekti: str, avain: str) -> list:
+    base, headers = _conf()
+    if not base:
+        return []
     try:
-        sb = _client()
-        tulos = (sb.table("projekti_data")
-                   .select("data")
-                   .eq("projekti", projekti)
-                   .eq("avain", avain)
-                   .execute())
-        if tulos.data:
-            d = tulos.data[0]["data"]
+        r = requests.get(
+            f"{base}/projekti_data",
+            headers=headers,
+            params={"select": "data", "projekti": f"eq.{projekti}", "avain": f"eq.{avain}"},
+            timeout=10,
+        )
+        r.raise_for_status()
+        rivit = r.json()
+        if rivit:
+            d = rivit[0]["data"]
             return d if isinstance(d, list) else json.loads(d)
     except Exception as e:
         st.error(f"Supabase-lukuvirhe ({avain}): {e}")
@@ -59,27 +58,41 @@ def lataa_projekti(projekti: str, avain: str) -> list:
 
 
 def tallenna_projekti(projekti: str, avain: str, data: list):
+    base, headers = _conf()
+    if not base:
+        return
     try:
-        sb = _client()
-        (sb.table("projekti_data")
-           .upsert({"projekti": projekti, "avain": avain, "data": data},
-                   on_conflict="projekti,avain")
-           .execute())
+        h = dict(headers)
+        h["Prefer"] = "resolution=merge-duplicates"
+        r = requests.post(
+            f"{base}/projekti_data",
+            headers=h,
+            params={"on_conflict": "projekti,avain"},
+            data=json.dumps({"projekti": projekti, "avain": avain, "data": data}),
+            timeout=10,
+        )
+        r.raise_for_status()
     except Exception as e:
         st.error(f"Supabase-tallennusvirhe ({avain}): {e}")
 
 
-# ── Globaali data (ei projektikohtainen) ──────────────────────────────────────
+# ── Globaali data ──────────────────────────────────────────────────────────────
 
 def lataa_globaali(avain: str) -> list:
+    base, headers = _conf()
+    if not base:
+        return []
     try:
-        sb = _client()
-        tulos = (sb.table("globaali_data")
-                   .select("data")
-                   .eq("avain", avain)
-                   .execute())
-        if tulos.data:
-            d = tulos.data[0]["data"]
+        r = requests.get(
+            f"{base}/globaali_data",
+            headers=headers,
+            params={"select": "data", "avain": f"eq.{avain}"},
+            timeout=10,
+        )
+        r.raise_for_status()
+        rivit = r.json()
+        if rivit:
+            d = rivit[0]["data"]
             return d if isinstance(d, list) else json.loads(d)
     except Exception as e:
         st.error(f"Supabase-lukuvirhe ({avain}): {e}")
@@ -87,23 +100,38 @@ def lataa_globaali(avain: str) -> list:
 
 
 def tallenna_globaali(avain: str, data: list):
+    base, headers = _conf()
+    if not base:
+        return
     try:
-        sb = _client()
-        (sb.table("globaali_data")
-           .upsert({"avain": avain, "data": data})
-           .execute())
+        h = dict(headers)
+        h["Prefer"] = "resolution=merge-duplicates"
+        r = requests.post(
+            f"{base}/globaali_data",
+            headers=h,
+            params={"on_conflict": "avain"},
+            data=json.dumps({"avain": avain, "data": data}),
+            timeout=10,
+        )
+        r.raise_for_status()
     except Exception as e:
         st.error(f"Supabase-tallennusvirhe ({avain}): {e}")
 
 
 # ── Projektilista ──────────────────────────────────────────────────────────────
 
-def hae_projektit() -> list[str]:
+def hae_projektit() -> list:
+    base, headers = _conf()
+    if not base:
+        return []
     try:
-        sb = _client()
-        tulos = (sb.table("projekti_data")
-                   .select("projekti")
-                   .execute())
-        return sorted(set(r["projekti"] for r in tulos.data))
+        r = requests.get(
+            f"{base}/projekti_data",
+            headers=headers,
+            params={"select": "projekti"},
+            timeout=10,
+        )
+        r.raise_for_status()
+        return sorted(set(row["projekti"] for row in r.json()))
     except Exception:
         return []
