@@ -153,6 +153,36 @@ def tallenna_projekti_yhteenveto(projekti_nimi: str, yhteenveto: dict) -> None:
         _tallenna_json(projekti_nimi, data)
 
 
+# ── Ammattinimikkeet ───────────────────────────────────────────────────────────
+
+def lataa_ammattinimikkeet() -> list:
+    if _pilvessa():
+        from storage_supabase import lataa_globaali
+        return lataa_globaali("ammattinimikkeet")
+    polku = DATA_DIR / "_ammattinimikkeet.json"
+    if polku.exists():
+        import json
+        return json.loads(polku.read_text(encoding="utf-8"))
+    # Oletukset
+    return [
+        {"nimike": "RAM",             "kuvaus": "Rakennusammattimiehen", "tuntihinta": 45.0},
+        {"nimike": "RM",              "kuvaus": "Rakennusmies",          "tuntihinta": 40.0},
+        {"nimike": "Purkutyöntekijä", "kuvaus": "",                      "tuntihinta": 38.0},
+        {"nimike": "Siistijä",        "kuvaus": "",                      "tuntihinta": 35.0},
+        {"nimike": "Apumies",         "kuvaus": "",                      "tuntihinta": 33.0},
+    ]
+
+
+def tallenna_ammattinimikkeet(nimikkeet: list) -> None:
+    if _pilvessa():
+        from storage_supabase import tallenna_globaali
+        tallenna_globaali("ammattinimikkeet", nimikkeet)
+    else:
+        import json
+        polku = DATA_DIR / "_ammattinimikkeet.json"
+        polku.write_text(json.dumps(nimikkeet, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def lataa_projekti_yhteenveto(projekti_nimi: str) -> dict:
     if _pilvessa():
         from storage_supabase import lataa_projekti

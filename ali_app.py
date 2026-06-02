@@ -17,6 +17,7 @@ from storage import (
     lataa_ali_tunnit, tallenna_ali_tunnit, hae_projektit,
     lataa_projektirekisteri, tallenna_projektirekisteri,
     hae_projekti_koodilla, tallenna_projekti_yhteenveto, lataa_projekti_yhteenveto,
+    lataa_ammattinimikkeet, tallenna_ammattinimikkeet,
 )
 from raportti_ali import luo_viikkoraportti
 from translations import tr, paivat as _paivat_nimet, kategoriat, laskutustavat
@@ -158,8 +159,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Tallennetut asetukset ──────────────────────────────────────────────────────
-asetukset = _lataa_asetukset()
-tyontekijat_lista = _lataa_tyontekijat()
+asetukset           = _lataa_asetukset()
+tyontekijat_lista   = _lataa_tyontekijat()
+ammattinimikkeet    = lataa_ammattinimikkeet()
+_nimike_hinnat      = {n["nimike"]: n["tuntihinta"] for n in ammattinimikkeet}
 
 # ── SIVUPALKKI ──────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -218,8 +221,12 @@ with st.sidebar:
 
     paivat     = _viikon_paivat(int(vuosi), int(viikko))
     PAIVAT_NYK = _paivat_nimet(kieli)
-    KATEGORIAT = kategoriat(kieli)
     LASK_TAVAT = laskutustavat(kieli)
+    # Kustannuspaikat projektin mukaan (jos projekti löytyy rekisteristä)
+    _proj_info  = next((p for p in lataa_projektirekisteri() if p["nimi"] == projekti), {})
+    _kp_fi      = _proj_info.get("kustannuspaikat", ["Urakka","Lisätyö","Vesivahinko"])
+    _kp_kaikki  = {"Urakka": tr("urakka",kieli), "Lisätyö": tr("lisatyo",kieli), "Vesivahinko": tr("vesivahinko",kieli)}
+    KATEGORIAT  = [_kp_kaikki.get(k, k) for k in _kp_fi]
 
     st.caption(" · ".join(f"{P} {p.strftime('%-d.%-m.')}" for P, p in zip(PAIVAT_NYK, paivat)))
     st.divider()
@@ -694,7 +701,7 @@ with tab_tekijat:
     # Näytä nykyinen lista
     if tyontekijat_lista:
         df_tek = pd.DataFrame(tyontekijat_lista)
-        naytto_cols = ["nimi","yritys","laskutustapa","tuntihinta","kiintea_hinta"]
+        naytto_cols = ["nimi","yritys","ammattinimike","laskutustapa","tuntihinta","kiintea_hinta"]
         naytto_cols = [c for c in naytto_cols if c in df_tek.columns]
         naytto = df_tek[naytto_cols].copy()
         naytto.columns = [c.replace("_"," ").title() for c in naytto_cols]
@@ -704,13 +711,22 @@ with tab_tekijat:
     # Lisää uusi
     with st.expander(tr("lisaa_tekija", kieli), expanded=len(tyontekijat_lista)==0):
         t1, t2 = st.columns(2)
-        t_nimi = t1.text_input(tr("nimi", kieli), key="t_nimi")
-        t_yrit = t1.text_input(tr("yritys", kieli), key="t_yrit")
-        t_lp   = t2.selectbox(tr("laskutustapa", kieli), LASK_TAVAT, key="t_lp")
+        t_nimi  = t1.text_input(tr("nimi", kieli), key="t_nimi")
+        t_yrit  = t1.text_input(tr("yritys", kieli), key="t_yrit")
+
+        # Ammattinimike — täyttää tuntihinnan automaattisesti
+        nimike_lista = [n["nimike"] for n in ammattinimikkeet] + ["— Muu —"]
+        t_nimike = t1.selectbox("Ammattinimike", nimike_lista, key="t_nimike")
+        if t_nimike != "— Muu —":
+            nimike_info = next((n for n in ammattinimikkeet if n["nimike"] == t_nimike), {})
+            t1.caption(f"{nimike_info.get('kuvaus','')}  |  {nimike_info.get('tuntihinta',0):.0f} €/h")
+
+        t_lp = t2.selectbox(tr("laskutustapa", kieli), LASK_TAVAT, key="t_lp")
         t_th, t_kh = None, None
-        if t_lp == LASK_TAVAT[1]:   # tuntihinta
-            t_th = t2.number_input("€/h", 0.0, step=1.0, value=38.0, key="t_th")
-        elif t_lp == LASK_TAVAT[2]: # kiinteä
+        if t_lp == LASK_TAVAT[1]:
+            oletus_th = _nimike_hinnat.get(t_nimike, 38.0) if t_nimike != "— Muu —" else 38.0
+            t_th = t2.number_input("€/h", 0.0, step=0.5, value=oletus_th, key="t_th")
+        elif t_lp == LASK_TAVAT[2]:
             t_kh = t2.number_input(tr("kiintea_hinta", kieli), 0.0, step=10.0, key="t_kh")
 
         if st.button(tr("lisaa", kieli), type="primary", key="t_lisaa"):
@@ -721,12 +737,15 @@ with tab_tekijat:
             else:
                 lm = {LASK_TAVAT[0]:"tunnit", LASK_TAVAT[1]:"tuntihinta", LASK_TAVAT[2]:"kiintea"}
                 tyontekijat_lista.append({
-                    "nimi": t_nimi, "yritys": t_yrit,
-                    "laskutustapa": lm.get(t_lp, "tunnit"),
-                    "tuntihinta": t_th, "kiintea_hinta": t_kh,
+                    "nimi":          t_nimi,
+                    "yritys":        t_yrit,
+                    "ammattinimike": t_nimike if t_nimike != "— Muu —" else "",
+                    "laskutustapa":  lm.get(t_lp, "tunnit"),
+                    "tuntihinta":    t_th,
+                    "kiintea_hinta": t_kh,
                 })
                 _tallenna_tyontekijat(tyontekijat_lista)
-                st.success(f"✅ {t_nimi}")
+                st.success(f"✅ {t_nimi} ({t_nimike})")
                 st.rerun()
 
     # Poista listalta
@@ -744,75 +763,161 @@ with tab_tekijat:
 # ══════════════════════════════════════════════════════════════════════════════
 if tab_projektit is not None:
     with tab_projektit:
-        st.subheader("📁 Projektienhallinta")
-        rekisteri = lataa_projektirekisteri()
+        ptab1, ptab2 = st.tabs(["📁 Projektit", "🔨 Ammattinimikkeet"])
 
-        # ── Uusi projekti ──────────────────────────────────────────────────
-        with st.expander("➕ Luo uusi projekti", expanded=len(rekisteri)==0):
-            np1, np2 = st.columns(2)
-            uusi_nimi   = np1.text_input("Projektin nimi", placeholder="esim. Valteri-koulu, Tenholantie 15", key="np_nimi")
-            uusi_kuvaus = np1.text_input("Lyhyt kuvaus (vapaaehtoinen)", placeholder="esim. Asbestipurku 5 krs", key="np_kuv")
-            uusi_koodi  = np2.text_input("Projektikoodi (6 merkkiä)", value=_luo_koodi(),
-                                          max_chars=6, key="np_koodi",
-                                          help="Tämä koodi annetaan aliurakoitsijoille kirjautumiseen").upper()
-            np2.caption("Muuta koodi haluamaksesi tai käytä automaattista.")
+        # ══════════════════════════════════════════════════════════════════
+        # PROJEKTIT
+        # ══════════════════════════════════════════════════════════════════
+        with ptab1:
+            st.subheader("📁 Projektienhallinta")
+            rekisteri = lataa_projektirekisteri()
 
-            if st.button("Luo projekti", type="primary", key="np_luo"):
-                if not uusi_nimi:
-                    st.error("Syötä projektin nimi.")
-                elif any(p["koodi"] == uusi_koodi for p in rekisteri):
-                    st.error(f"Koodi {uusi_koodi} on jo käytössä. Valitse toinen.")
-                else:
-                    rekisteri.append({
-                        "nimi": uusi_nimi,
-                        "koodi": uusi_koodi,
-                        "kuvaus": uusi_kuvaus,
-                        "luotu": date.today().isoformat(),
-                        "tila": "aktiivinen",
-                    })
-                    tallenna_projektirekisteri(rekisteri)
-                    st.success(f"✅ Projekti luotu! Aliurakoitsijat kirjautuvat koodilla: **{uusi_koodi}**")
-                    st.rerun()
+            # ── Uusi projekti ──────────────────────────────────────────────
+            KAIKKI_KUSTPAIKAT = ["Urakka", "Lisätyö", "Vesivahinko"]
 
-        # ── Projektilista ──────────────────────────────────────────────────
-        st.divider()
-        for p in rekisteri:
-            tila_emoji = "🟢" if p.get("tila") == "aktiivinen" else "⚫"
-            c1, c2, c3, c4 = st.columns([4, 2, 2, 2])
-            c1.markdown(f"{tila_emoji} **{p['nimi']}**  \n{p.get('kuvaus','')}")
-            c2.code(p["koodi"])
-            c2.caption(p.get("luotu",""))
+            with st.expander("➕ Luo uusi projekti", expanded=len(rekisteri)==0):
+                np1, np2 = st.columns(2)
+                uusi_nimi   = np1.text_input("Projektin nimi",
+                              placeholder="esim. Valteri-koulu, Tenholantie 15", key="np_nimi")
+                uusi_kuvaus = np1.text_input("Lyhyt kuvaus",
+                              placeholder="esim. Asbestipurku 5 krs", key="np_kuv")
+                uusi_tilaaja = np1.text_input("Tilaaja",
+                               placeholder="esim. Mirlux Oy / Lalli Kuoppala", key="np_tilaaja")
 
-            if p.get("tila") == "aktiivinen":
-                if c3.button("✅ Merkitse valmiiksi", key=f"valmis_{p['koodi']}",
-                              use_container_width=True):
-                    # Tallenna yhteenveto historiaan
-                    rivit = lataa_ali_tunnit(p["nimi"])
-                    tunnit_yht = sum(r.get("yht_h",0) for r in rivit)
-                    viikot_set = set(r.get("viikko",0) for r in rivit)
-                    yhteenveto = {
-                        "valmistunut": date.today().isoformat(),
-                        "nimi": p["nimi"],
-                        "kuvaus": p.get("kuvaus",""),
-                        "kesto_viikkoja": len(viikot_set),
-                        "tunnit_yht": tunnit_yht,
-                        "urakka_h": sum(r.get("yht_h",0) for r in rivit if r.get("kategoria")=="Urakka"),
-                        "lisatyo_h": sum(r.get("yht_h",0) for r in rivit if r.get("kategoria")=="Lisätyö"),
-                        "tekijoita": len(set(r.get("nimi","") for r in rivit)),
-                    }
-                    tallenna_projekti_yhteenveto(p["nimi"], yhteenveto)
-                    p["tila"] = "valmis"
-                    tallenna_projektirekisteri(rekisteri)
-                    st.success("Projekti merkitty valmiiksi ja tallennettu historiaan.")
-                    st.rerun()
-            else:
-                c3.caption("⚫ Valmis")
+                uusi_koodi  = np2.text_input(
+                    "Projektikoodi (6 merkkiä)", value=_luo_koodi(), max_chars=6,
+                    key="np_koodi",
+                    help="Tämä koodi annetaan aliurakoitsijoille kirjautumiseen").upper()
+                np2.caption("Muuta koodi haluamaksesi tai käytä automaattista.")
 
-            if c4.button("🗑️ Poista", key=f"poista_p_{p['koodi']}", use_container_width=True):
-                rekisteri = [r for r in rekisteri if r["koodi"] != p["koodi"]]
-                tallenna_projektirekisteri(rekisteri)
-                st.rerun()
+                uusi_kustpaikat = np2.multiselect(
+                    "Kustannuspaikat (kategoriat)",
+                    KAIKKI_KUSTPAIKAT,
+                    default=KAIKKI_KUSTPAIKAT,
+                    key="np_kp",
+                    help="Valitse mitä kategorioita tässä projektissa käytetään",
+                )
+                uusi_th_oletus = np2.number_input(
+                    "Oletustuntihinta (€/h)", value=38.0, step=0.5, key="np_th",
+                    help="Käytetään jos tekijälle ei ole asetettu ammattinimikettä")
+
+                if st.button("Luo projekti", type="primary", key="np_luo"):
+                    if not uusi_nimi:
+                        st.error("Syötä projektin nimi.")
+                    elif any(p["koodi"] == uusi_koodi for p in rekisteri):
+                        st.error(f"Koodi {uusi_koodi} on jo käytössä. Valitse toinen.")
+                    else:
+                        rekisteri.append({
+                            "nimi":          uusi_nimi,
+                            "koodi":         uusi_koodi,
+                            "kuvaus":        uusi_kuvaus,
+                            "tilaaja":       uusi_tilaaja,
+                            "kustannuspaikat": uusi_kustpaikat or KAIKKI_KUSTPAIKAT,
+                            "tuntihinta_oletus": uusi_th_oletus,
+                            "luotu":         date.today().isoformat(),
+                            "tila":          "aktiivinen",
+                        })
+                        tallenna_projektirekisteri(rekisteri)
+                        st.success(f"✅ Projekti **{uusi_nimi}** luotu!  \n"
+                                   f"Aliurakoitsijat kirjautuvat koodilla: **`{uusi_koodi}`**")
+                        st.rerun()
+
+            # ── Projektilista ──────────────────────────────────────────────
             st.divider()
+            for p in rekisteri:
+                tila_emoji = "🟢" if p.get("tila") == "aktiivinen" else "⚫"
+                c1, c2, c3, c4 = st.columns([4, 2, 2, 2])
+                kp = ", ".join(p.get("kustannuspaikat", ["Urakka","Lisätyö","Vesivahinko"]))
+                c1.markdown(f"{tila_emoji} **{p['nimi']}**  \n"
+                            f"{p.get('kuvaus','')}  \n"
+                            f"Tilaaja: {p.get('tilaaja','–')}  ·  Kp: {kp}  ·  {p.get('tuntihinta_oletus',38):.0f} €/h")
+                c2.code(p["koodi"])
+                c2.caption(p.get("luotu",""))
+
+                if p.get("tila") == "aktiivinen":
+                    if c3.button("✅ Valmis", key=f"valmis_{p['koodi']}", use_container_width=True):
+                        rivit = lataa_ali_tunnit(p["nimi"])
+                        tunnit_yht = sum(r.get("yht_h",0) for r in rivit)
+                        viikot_set = set(r.get("viikko",0) for r in rivit)
+                        tallenna_projekti_yhteenveto(p["nimi"], {
+                            "valmistunut":   date.today().isoformat(),
+                            "nimi":          p["nimi"],
+                            "kuvaus":        p.get("kuvaus",""),
+                            "kesto_viikkoja":len(viikot_set),
+                            "tunnit_yht":    tunnit_yht,
+                            "urakka_h":      sum(r.get("yht_h",0) for r in rivit if r.get("kategoria")=="Urakka"),
+                            "lisatyo_h":     sum(r.get("yht_h",0) for r in rivit if r.get("kategoria")=="Lisätyö"),
+                            "tekijoita":     len(set(r.get("nimi","") for r in rivit)),
+                        })
+                        p["tila"] = "valmis"
+                        tallenna_projektirekisteri(rekisteri)
+                        st.success("Projekti valmis, tallennettu historiaan.")
+                        st.rerun()
+                else:
+                    c3.caption("⚫ Valmis")
+
+                if c4.button("🗑️", key=f"poista_p_{p['koodi']}", use_container_width=True):
+                    rekisteri = [r for r in rekisteri if r["koodi"] != p["koodi"]]
+                    tallenna_projektirekisteri(rekisteri)
+                    st.rerun()
+                st.divider()
+
+        # ══════════════════════════════════════════════════════════════════
+        # AMMATTINIMIKKEET
+        # ══════════════════════════════════════════════════════════════════
+        with ptab2:
+            st.subheader("🔨 Ammattinimikkeet ja tuntihinnat")
+            st.caption("Ammattinimike valitaan tekijälistalla — tuntihinta täyttyy automaattisesti.")
+
+            # Näytä nykyinen lista
+            if ammattinimikkeet:
+                df_nim = pd.DataFrame(ammattinimikkeet)
+                df_nim.columns = ["Nimike", "Kuvaus", "€/h"]
+                st.dataframe(df_nim, use_container_width=True, hide_index=True)
+                st.divider()
+
+            # Lisää uusi
+            with st.expander("➕ Lisää ammattinimike", expanded=False):
+                an1, an2 = st.columns(2)
+                an_nimike = an1.text_input("Nimike (lyhenne)", placeholder="esim. RAM", key="an_nimike")
+                an_kuvaus = an1.text_input("Kuvaus (vapaaehtoinen)",
+                                           placeholder="esim. Rakennusammattimiehen", key="an_kuv")
+                an_th     = an2.number_input("Tuntihinta (€/h)", min_value=0.0,
+                                             value=38.0, step=0.5, key="an_th")
+                if st.button("Lisää nimike", type="primary", key="an_lisaa"):
+                    if not an_nimike:
+                        st.error("Syötä nimike.")
+                    elif any(n["nimike"] == an_nimike for n in ammattinimikkeet):
+                        st.warning(f"{an_nimike} on jo listalla.")
+                    else:
+                        ammattinimikkeet.append({
+                            "nimike": an_nimike,
+                            "kuvaus": an_kuvaus,
+                            "tuntihinta": an_th,
+                        })
+                        tallenna_ammattinimikkeet(ammattinimikkeet)
+                        st.success(f"✅ {an_nimike} — {an_th:.0f} €/h lisätty!")
+                        st.rerun()
+
+            # Muokkaa hintaa
+            if ammattinimikkeet:
+                with st.expander("✏️ Muokkaa tuntihintaa"):
+                    muok_nim = st.selectbox("Nimike", [n["nimike"] for n in ammattinimikkeet], key="muok_nim")
+                    muok_obj = next(n for n in ammattinimikkeet if n["nimike"] == muok_nim)
+                    muok_th  = st.number_input("Uusi tuntihinta (€/h)", value=muok_obj["tuntihinta"],
+                                               step=0.5, key="muok_th")
+                    if st.button("Tallenna muutos", type="primary", key="muok_tall"):
+                        muok_obj["tuntihinta"] = muok_th
+                        tallenna_ammattinimikkeet(ammattinimikkeet)
+                        st.success(f"✅ {muok_nim}: {muok_th:.0f} €/h päivitetty.")
+                        st.rerun()
+
+                with st.expander("🗑️ Poista nimike"):
+                    poista_nim = st.selectbox("Nimike", [n["nimike"] for n in ammattinimikkeet], key="poista_nim")
+                    if st.button("Poista", type="secondary", key="poista_nim_btn"):
+                        ammattinimikkeet = [n for n in ammattinimikkeet if n["nimike"] != poista_nim]
+                        tallenna_ammattinimikkeet(ammattinimikkeet)
+                        st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # HISTORIA (vain työnjohtaja)
