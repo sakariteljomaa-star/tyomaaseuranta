@@ -84,6 +84,31 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── Salasanasuojaus ────────────────────────────────────────────────────────────
+def _tarkista_kirjautuminen():
+    try:
+        oikea = st.secrets.get("auth", {}).get("salasana", "")
+    except Exception:
+        return  # Paikallinen ajo ilman secretsiä — ei vaadi salasanaa
+
+    if not oikea:
+        return  # Salasanaa ei asetettu — ei vaadi
+
+    if st.session_state.get("kirjautunut"):
+        return  # Jo kirjautunut
+
+    st.markdown("## 🔒 Kirjaudu sisään")
+    syotetty = st.text_input("Salasana", type="password", key="kirjautuminen_pw")
+    if st.button("Kirjaudu", type="primary"):
+        if syotetty == oikea:
+            st.session_state["kirjautunut"] = True
+            st.rerun()
+        else:
+            st.error("Väärä salasana.")
+    st.stop()
+
+_tarkista_kirjautuminen()
+
 # Kompakti CSS — isommat napit, siistimpi mobiililla
 st.markdown("""
 <style>
