@@ -19,6 +19,30 @@ from storage import (
 from kansiotuonti import lue_kansio, oletus_kansio
 
 st.set_page_config(page_title="Työmaaseuranta", page_icon="🏗️", layout="wide")
+
+# ── Salasanasuojaus (arkaluonteinen taloustieto) ───────────────────────────────
+def _tarkista_kirjautuminen():
+    try:
+        oikea = st.secrets.get("auth", {}).get("salasana", "")
+    except Exception:
+        return  # Paikallinen ajo ilman secretsiä — ei vaadi salasanaa
+    if not oikea:
+        return
+    if st.session_state.get("kirjautunut"):
+        return
+    st.title("🔒 Työmaaseuranta")
+    st.caption("Kustannusseuranta — kirjaudu sisään")
+    pw = st.text_input("Salasana", type="password", key="login_pw")
+    if st.button("Kirjaudu", type="primary"):
+        if pw == oikea:
+            st.session_state["kirjautunut"] = True
+            st.rerun()
+        else:
+            st.error("Väärä salasana.")
+    st.stop()
+
+_tarkista_kirjautuminen()
+
 st.title("🏗️ Työmaaseuranta – Kustannusseuranta")
 st.caption("Uudenmaan Asbestipurku Oy")
 
