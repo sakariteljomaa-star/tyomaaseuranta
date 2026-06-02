@@ -144,11 +144,18 @@ def kirjaudu_gate(sovellus_nimi: str = "Työmaaseuranta") -> dict:
                     st.error("Salasanan oltava vähintään 6 merkkiä.")
                 else:
                     ok, viesti = luo_kayttaja(a_tunnus, a_nimi, a_pw1, "admin")
-                    if ok:
+                    # Varmista että tallennus meni perille (lue takaisin)
+                    if ok and hae_kayttaja(a_tunnus):
                         st.success(viesti + " Kirjaudu nyt sisään.")
                         st.rerun()
                     else:
-                        st.error(viesti)
+                        virhe = st.session_state.get("_sb_virhe", "")
+                        st.error("Pääkäyttäjän tallennus epäonnistui. "
+                                 + (f"Syy: {virhe}" if virhe else viesti))
+                        st.info("Todennäköinen syy: Supabasen RLS estää kirjoituksen. "
+                                "Aja Supabasen SQL Editorissa:\n\n"
+                                "ALTER TABLE globaali_data DISABLE ROW LEVEL SECURITY;\n"
+                                "ALTER TABLE projekti_data DISABLE ROW LEVEL SECURITY;")
         st.stop()
 
     # ── Normaali kirjautuminen ─────────────────────────────────────────────

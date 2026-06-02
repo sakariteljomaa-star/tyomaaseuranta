@@ -99,10 +99,10 @@ def lataa_globaali(avain: str) -> list:
     return []
 
 
-def tallenna_globaali(avain: str, data: list):
+def tallenna_globaali(avain: str, data: list) -> bool:
     base, headers = _conf()
     if not base:
-        return
+        return False
     try:
         h = dict(headers)
         h["Prefer"] = "resolution=merge-duplicates"
@@ -113,9 +113,15 @@ def tallenna_globaali(avain: str, data: list):
             data=json.dumps({"avain": avain, "data": data}),
             timeout=10,
         )
-        r.raise_for_status()
+        if r.status_code >= 400:
+            st.session_state["_sb_virhe"] = f"HTTP {r.status_code}: {r.text[:200]}"
+            st.error(f"Supabase-tallennusvirhe ({avain}): {r.status_code} — {r.text[:200]}")
+            return False
+        return True
     except Exception as e:
+        st.session_state["_sb_virhe"] = str(e)
         st.error(f"Supabase-tallennusvirhe ({avain}): {e}")
+        return False
 
 
 # ── Projektilista ──────────────────────────────────────────────────────────────
