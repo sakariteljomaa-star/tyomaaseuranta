@@ -9,7 +9,12 @@ import re
 from pathlib import Path
 
 DATA_DIR = Path(__file__).parent / "data"
-DATA_DIR.mkdir(exist_ok=True)
+try:
+    DATA_DIR.mkdir(exist_ok=True)
+except Exception:
+    # Streamlit Cloud: lähdekoodi on read-only — käytä /tmp
+    DATA_DIR = Path("/tmp/tyomaaseuranta_data")
+    DATA_DIR.mkdir(exist_ok=True)
 
 
 # ── Tunnistus: pilvi vai paikallinen ──────────────────────────────────────────
