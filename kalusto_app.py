@@ -17,6 +17,7 @@ from pathlib import Path
 
 from storage import lataa_globaali, tallenna_globaali
 from parser_kalusto import lue_kalustorekisteri
+from tarrapohja import luo_tarra_pdf, TARRAKOOT
 
 # ── Apufunktiot ────────────────────────────────────────────────────────────────
 
@@ -309,8 +310,26 @@ with tab_qr:
                 qr_png = _luo_qr_png(url)
                 cols[j].image(qr_png, caption=f"{laite['nro']}\n{laite['laite']}", width=140)
 
-        # Lataa kaikki zip-tiedostona
-        if st.button("📦 Lataa kaikki QR-koodit (ZIP)", type="primary"):
+        st.divider()
+
+        # ── Tulostuspohja konetarroille (PDF) ──────────────────────────────
+        st.markdown("### 🖨️ Tulostuspohja konetarroille")
+        st.caption("A4-arkki valmiita tarroja — QR + tunnus + laitenimi. Tulosta tarra-arkille tai paperille ja leikkaa.")
+        tc1, tc2 = st.columns([2, 1])
+        tarrakoko = tc1.selectbox("Tarran koko", list(TARRAKOOT.keys()), index=1, key="tarrakoko")
+        tc1.caption("💡 Pieni = käsikoneet · Keskikoko = imurit/piikkauskoneet · Iso = alipaineistajat")
+        if tc2.button("📄 Luo tarra-PDF", type="primary", use_container_width=True):
+            pdf = luo_tarra_pdf(valitut, app_url, tarrakoko)
+            st.session_state["_tarra_pdf"] = pdf
+        if st.session_state.get("_tarra_pdf"):
+            st.download_button("⬇️ Lataa tarra-PDF", data=st.session_state["_tarra_pdf"],
+                               file_name="konetarrat.pdf", mime="application/pdf",
+                               use_container_width=True)
+
+        st.divider()
+
+        # Lataa QR-kuvat zip-tiedostona
+        if st.button("📦 Lataa QR-kuvat erikseen (ZIP)"):
             import zipfile
             zip_buf = io.BytesIO()
             with zipfile.ZipFile(zip_buf, "w") as zf:
