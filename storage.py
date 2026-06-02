@@ -108,3 +108,55 @@ def hae_projektit() -> list:
         from storage_supabase import hae_projektit as _hp
         return _hp()
     return [p.stem for p in DATA_DIR.glob("*.json") if not p.name.startswith("_")]
+
+
+# ── Projektirekisteri ──────────────────────────────────────────────────────────
+
+def lataa_projektirekisteri() -> list:
+    """Palauttaa kaikki projektit koodeineen."""
+    if _pilvessa():
+        from storage_supabase import lataa_globaali
+        return lataa_globaali("projektirekisteri")
+    polku = DATA_DIR / "_projektirekisteri.json"
+    if polku.exists():
+        import json
+        return json.loads(polku.read_text(encoding="utf-8"))
+    return []
+
+
+def tallenna_projektirekisteri(projektit: list) -> None:
+    if _pilvessa():
+        from storage_supabase import tallenna_globaali
+        tallenna_globaali("projektirekisteri", projektit)
+    else:
+        import json
+        polku = DATA_DIR / "_projektirekisteri.json"
+        polku.write_text(json.dumps(projektit, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def hae_projekti_koodilla(koodi: str):
+    """Palauttaa projektin dict:n koodin perusteella tai None."""
+    for p in lataa_projektirekisteri():
+        if p.get("koodi", "").upper() == koodi.upper():
+            return p
+    return None
+
+
+def tallenna_projekti_yhteenveto(projekti_nimi: str, yhteenveto: dict) -> None:
+    """Tallentaa valmistuneen projektin yhteenvedon historiatietokantaan."""
+    if _pilvessa():
+        from storage_supabase import tallenna_projekti
+        tallenna_projekti(projekti_nimi, "yhteenveto", [yhteenveto])
+    else:
+        data = _lataa_json(projekti_nimi)
+        data["yhteenveto"] = yhteenveto
+        _tallenna_json(projekti_nimi, data)
+
+
+def lataa_projekti_yhteenveto(projekti_nimi: str) -> dict:
+    if _pilvessa():
+        from storage_supabase import lataa_projekti
+        tulokset = lataa_projekti(projekti_nimi, "yhteenveto")
+        return tulokset[0] if tulokset else {}
+    data = _lataa_json(projekti_nimi)
+    return data.get("yhteenveto", {})

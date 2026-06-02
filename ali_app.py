@@ -13,7 +13,11 @@ from datetime import date, timedelta
 from pathlib import Path
 import json
 
-from storage import lataa_ali_tunnit, tallenna_ali_tunnit, hae_projektit
+from storage import (
+    lataa_ali_tunnit, tallenna_ali_tunnit, hae_projektit,
+    lataa_projektirekisteri, tallenna_projektirekisteri,
+    hae_projekti_koodilla, tallenna_projekti_yhteenveto, lataa_projekti_yhteenveto,
+)
 from raportti_ali import luo_viikkoraportti
 from translations import tr, paivat as _paivat_nimet, kategoriat, laskutustavat
 
@@ -84,30 +88,64 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Salasanasuojaus ────────────────────────────────────────────────────────────
-def _tarkista_kirjautuminen():
+# ── Roolikirjautuminen ─────────────────────────────────────────────────────────
+import random, string
+
+def _luo_koodi(pituus=6):
+    return "".join(random.choices(string.ascii_uppercase + string.digits, k=pituus))
+
+def _hae_secrets():
     try:
-        oikea = st.secrets.get("auth", {}).get("salasana", "")
+        return st.secrets.get("auth", {})
     except Exception:
-        return  # Paikallinen ajo ilman secretsiä — ei vaadi salasanaa
+        return {}
 
-    if not oikea:
-        return  # Salasanaa ei asetettu — ei vaadi
+def _kirjautuminen():
+    """Palauttaa (rooli, projekti_nimi) tai pysäyttää sovelluksen."""
+    auth = _hae_secrets()
+    tj_salasana  = auth.get("tj_salasana", "")
+    ali_salasana = auth.get("ali_salasana", "")
 
-    if st.session_state.get("kirjautunut"):
-        return  # Jo kirjautunut
+    # Paikallinen kehitys ilman secretsejä
+    if not tj_salasana and not ali_salasana:
+        return "tj", st.session_state.get("projekti_nimi", "")
 
-    st.markdown("## 🔒 Kirjaudu sisään")
-    syotetty = st.text_input("Salasana", type="password", key="kirjautuminen_pw")
-    if st.button("Kirjaudu", type="primary"):
-        if syotetty == oikea:
-            st.session_state["kirjautunut"] = True
-            st.rerun()
-        else:
-            st.error("Väärä salasana.")
+    # Jo kirjautunut
+    if st.session_state.get("rooli"):
+        return st.session_state["rooli"], st.session_state.get("projekti_nimi", "")
+
+    # Kirjautumissivu
+    st.markdown("## 👷 Aliurakoitsijoiden tuntikirja")
+    st.markdown("---")
+
+    valinta = st.radio("Kirjaudu sisään:", ["🔑 Työnjohtaja", "📋 Aliurakoitsija (projektikoodi)"],
+                       horizontal=True)
+
+    if valinta == "🔑 Työnjohtaja":
+        pw = st.text_input("Työnjohtajan salasana", type="password", key="tj_pw")
+        if st.button("Kirjaudu", type="primary", use_container_width=True):
+            if pw == tj_salasana:
+                st.session_state["rooli"] = "tj"
+                st.session_state["projekti_nimi"] = ""
+                st.rerun()
+            else:
+                st.error("Väärä salasana.")
+    else:
+        koodi = st.text_input("Projektikoodi (6 merkkiä)", max_chars=6,
+                              placeholder="esim. VALT26").strip().upper()
+        if st.button("Avaa projekti", type="primary", use_container_width=True):
+            projekti = hae_projekti_koodilla(koodi)
+            if projekti:
+                st.session_state["rooli"] = "ali"
+                st.session_state["projekti_nimi"] = projekti["nimi"]
+                st.session_state["projekti_koodi"] = koodi
+                st.rerun()
+            else:
+                st.error("Projektikoodi ei löydy. Tarkista koodi työnjohtajalta.")
+
     st.stop()
 
-_tarkista_kirjautuminen()
+rooli, _proj_init = _kirjautuminen()
 
 # Kompakti CSS — isommat napit, siistimpi mobiililla
 st.markdown("""
@@ -139,66 +177,89 @@ with st.sidebar:
     kieli = st.session_state.get("kieli", "fi")
     st.divider()
 
-    # Projekti
-    projektit = _hae_projektit()
-    projekti_oletus = asetukset.get("projekti", "")
-    if projekti_oletus not in projektit:
-        projektit = [projekti_oletus] + projektit if projekti_oletus else projektit
-    projekti = st.text_input(
-        tr("projekti", kieli),
-        value=projekti_oletus,
-        placeholder=tr("projekti_ph", kieli),
-    )
+    # ── Projektivalinta roolien mukaan ────────────────────────────────────────
+    rekisteri = lataa_projektirekisteri()
+    aktiiviset = [p for p in rekisteri if p.get("tila") != "valmis"]
+
+    if rooli == "tj":
+        # Työnjohtaja: dropdown kaikista projekteista + uuden luonti
+        st.caption(f"🔑 Työnjohtaja")
+        proj_nimet = [p["nimi"] for p in aktiiviset]
+        proj_oletus = st.session_state.get("projekti_nimi", proj_nimet[0] if proj_nimet else "")
+        if proj_nimet:
+            valittu_idx = proj_nimet.index(proj_oletus) if proj_oletus in proj_nimet else 0
+            projekti = st.selectbox(tr("projekti", kieli), proj_nimet, index=valittu_idx)
+        else:
+            projekti = st.text_input(tr("projekti", kieli), value=proj_oletus,
+                                     placeholder=tr("projekti_ph", kieli))
+        st.session_state["projekti_nimi"] = projekti
+
+        if st.button("🔓 Kirjaudu ulos", use_container_width=True):
+            for k in ["rooli","projekti_nimi","projekti_koodi","kirjautunut"]:
+                st.session_state.pop(k, None)
+            st.rerun()
+    else:
+        # Aliurakoitsija: näkee vain oman projektinsa
+        projekti = st.session_state.get("projekti_nimi", "")
+        proj_info = next((p for p in rekisteri if p["nimi"] == projekti), {})
+        st.caption(f"📋 {projekti}")
+        st.caption(f"Koodi: `{proj_info.get('koodi','')}`")
+        if st.button("🔓 Kirjaudu ulos", use_container_width=True):
+            for k in ["rooli","projekti_nimi","projekti_koodi"]:
+                st.session_state.pop(k, None)
+            st.rerun()
 
     # Viikko ja vuosi
     tana = date.today()
+    st.divider()
     vuosi  = st.number_input(tr("vuosi", kieli),  value=asetukset.get("vuosi",  tana.year),  step=1, format="%d")
     viikko = st.number_input(tr("viikko", kieli), value=asetukset.get("viikko", int(tana.strftime("%V"))),
                               min_value=1, max_value=53, step=1)
 
-    # Näytä viikon päivät
-    paivat      = _viikon_paivat(int(vuosi), int(viikko))
-    PAIVAT_NYK  = _paivat_nimet(kieli)
-    KATEGORIAT  = kategoriat(kieli)
-    LASK_TAVAT  = laskutustavat(kieli)
+    paivat     = _viikon_paivat(int(vuosi), int(viikko))
+    PAIVAT_NYK = _paivat_nimet(kieli)
+    KATEGORIAT = kategoriat(kieli)
+    LASK_TAVAT = laskutustavat(kieli)
 
     st.caption(" · ".join(f"{P} {p.strftime('%-d.%-m.')}" for P, p in zip(PAIVAT_NYK, paivat)))
     st.divider()
 
-    # Oletuskategoria
     kat_oletus = asetukset.get("kategoria", KATEGORIAT[0])
     kat_idx    = KATEGORIAT.index(kat_oletus) if kat_oletus in KATEGORIAT else 0
     oletus_kat = st.selectbox(tr("oletus_kat", kieli), KATEGORIAT, index=kat_idx)
 
-    st.divider()
-    st.caption(f"🔗 {tr('paasovellus', kieli)}: http://localhost:8501")
-
 kieli = st.session_state.get("kieli", "fi")
+rooli_badge = "🔑 TJ" if rooli == "tj" else "📋"
 st.title(f"👷 {tr('app_title', kieli)}")
-st.caption(tr("app_caption", kieli))
+st.caption(f"{tr('app_caption', kieli)}  ·  {rooli_badge}  ·  {projekti or '—'}")
 
-# Tallenna viimeksi käytetyt asetukset
-_tallenna_asetukset({
-    "projekti": projekti,
-    "vuosi": int(vuosi),
-    "viikko": int(viikko),
-    "kategoria": oletus_kat,
-})
+_tallenna_asetukset({"projekti": projekti, "vuosi": int(vuosi),
+                     "viikko": int(viikko), "kategoria": oletus_kat})
 
 if not projekti:
-    st.warning("Aseta projektin nimi sivupalkissa.")
+    st.warning(tr("aseta_projekti", kieli))
     st.stop()
 
 # Lataa projektin ali-tuntikirja
 ali_rivit: list = lataa_ali_tunnit(projekti)
 
-# ── VÄLILEHDET ──────────────────────────────────────────────────────────────────
-tab_pikasyotto, tab_yksittainen, tab_vkoyht, tab_tekijat = st.tabs([
-    tr("tab_pikasyotto", kieli),
-    tr("tab_yksittainen", kieli),
-    tr("tab_vkoyht", kieli),
-    tr("tab_tekijat", kieli),
-])
+# ── VÄLILEHDET — roolien mukaan ────────────────────────────────────────────────
+if rooli == "tj":
+    tab_pikasyotto, tab_yksittainen, tab_vkoyht, tab_tekijat, tab_projektit, tab_historia = st.tabs([
+        tr("tab_pikasyotto", kieli),
+        tr("tab_yksittainen", kieli),
+        tr("tab_vkoyht", kieli),
+        tr("tab_tekijat", kieli),
+        "📁 Projektit",
+        "📈 Historia",
+    ])
+else:
+    tab_pikasyotto, tab_yksittainen, tab_vkoyht = st.tabs([
+        tr("tab_pikasyotto", kieli),
+        tr("tab_yksittainen", kieli),
+        tr("tab_vkoyht", kieli),
+    ])
+    tab_tekijat = tab_projektit = tab_historia = None
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PIKASYÖTTÖ — kaikki tekijät kerralla taulukossa
@@ -677,3 +738,138 @@ with tab_tekijat:
                 tyontekijat_lista = [tk for tk in tyontekijat_lista if tk["nimi"] != poistettava]
                 _tallenna_tyontekijat(tyontekijat_lista)
                 st.rerun()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PROJEKTIT (vain työnjohtaja)
+# ══════════════════════════════════════════════════════════════════════════════
+if tab_projektit is not None:
+    with tab_projektit:
+        st.subheader("📁 Projektienhallinta")
+        rekisteri = lataa_projektirekisteri()
+
+        # ── Uusi projekti ──────────────────────────────────────────────────
+        with st.expander("➕ Luo uusi projekti", expanded=len(rekisteri)==0):
+            np1, np2 = st.columns(2)
+            uusi_nimi   = np1.text_input("Projektin nimi", placeholder="esim. Valteri-koulu, Tenholantie 15", key="np_nimi")
+            uusi_kuvaus = np1.text_input("Lyhyt kuvaus (vapaaehtoinen)", placeholder="esim. Asbestipurku 5 krs", key="np_kuv")
+            uusi_koodi  = np2.text_input("Projektikoodi (6 merkkiä)", value=_luo_koodi(),
+                                          max_chars=6, key="np_koodi",
+                                          help="Tämä koodi annetaan aliurakoitsijoille kirjautumiseen").upper()
+            np2.caption("Muuta koodi haluamaksesi tai käytä automaattista.")
+
+            if st.button("Luo projekti", type="primary", key="np_luo"):
+                if not uusi_nimi:
+                    st.error("Syötä projektin nimi.")
+                elif any(p["koodi"] == uusi_koodi for p in rekisteri):
+                    st.error(f"Koodi {uusi_koodi} on jo käytössä. Valitse toinen.")
+                else:
+                    rekisteri.append({
+                        "nimi": uusi_nimi,
+                        "koodi": uusi_koodi,
+                        "kuvaus": uusi_kuvaus,
+                        "luotu": date.today().isoformat(),
+                        "tila": "aktiivinen",
+                    })
+                    tallenna_projektirekisteri(rekisteri)
+                    st.success(f"✅ Projekti luotu! Aliurakoitsijat kirjautuvat koodilla: **{uusi_koodi}**")
+                    st.rerun()
+
+        # ── Projektilista ──────────────────────────────────────────────────
+        st.divider()
+        for p in rekisteri:
+            tila_emoji = "🟢" if p.get("tila") == "aktiivinen" else "⚫"
+            c1, c2, c3, c4 = st.columns([4, 2, 2, 2])
+            c1.markdown(f"{tila_emoji} **{p['nimi']}**  \n{p.get('kuvaus','')}")
+            c2.code(p["koodi"])
+            c2.caption(p.get("luotu",""))
+
+            if p.get("tila") == "aktiivinen":
+                if c3.button("✅ Merkitse valmiiksi", key=f"valmis_{p['koodi']}",
+                              use_container_width=True):
+                    # Tallenna yhteenveto historiaan
+                    rivit = lataa_ali_tunnit(p["nimi"])
+                    tunnit_yht = sum(r.get("yht_h",0) for r in rivit)
+                    viikot_set = set(r.get("viikko",0) for r in rivit)
+                    yhteenveto = {
+                        "valmistunut": date.today().isoformat(),
+                        "nimi": p["nimi"],
+                        "kuvaus": p.get("kuvaus",""),
+                        "kesto_viikkoja": len(viikot_set),
+                        "tunnit_yht": tunnit_yht,
+                        "urakka_h": sum(r.get("yht_h",0) for r in rivit if r.get("kategoria")=="Urakka"),
+                        "lisatyo_h": sum(r.get("yht_h",0) for r in rivit if r.get("kategoria")=="Lisätyö"),
+                        "tekijoita": len(set(r.get("nimi","") for r in rivit)),
+                    }
+                    tallenna_projekti_yhteenveto(p["nimi"], yhteenveto)
+                    p["tila"] = "valmis"
+                    tallenna_projektirekisteri(rekisteri)
+                    st.success("Projekti merkitty valmiiksi ja tallennettu historiaan.")
+                    st.rerun()
+            else:
+                c3.caption("⚫ Valmis")
+
+            if c4.button("🗑️ Poista", key=f"poista_p_{p['koodi']}", use_container_width=True):
+                rekisteri = [r for r in rekisteri if r["koodi"] != p["koodi"]]
+                tallenna_projektirekisteri(rekisteri)
+                st.rerun()
+            st.divider()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# HISTORIA (vain työnjohtaja)
+# ══════════════════════════════════════════════════════════════════════════════
+if tab_historia is not None:
+    with tab_historia:
+        st.subheader("📈 Projektihistoria — pohjatietoa tarjouslaskentaan")
+
+        rekisteri = lataa_projektirekisteri()
+        valmiit = [p for p in rekisteri if p.get("tila") == "valmis"]
+
+        if not valmiit:
+            st.info("Ei vielä valmiita projekteja. Merkitse projekti valmiiksi Projektit-välilehdellä "
+                    "kun se päättyy — tiedot tallentuvat automaattisesti historiatietokantaan.")
+        else:
+            yhteenvedot = []
+            for p in valmiit:
+                yht = lataa_projekti_yhteenveto(p["nimi"])
+                if yht:
+                    yhteenvedot.append(yht)
+
+            if yhteenvedot:
+                import pandas as pd
+                df_h = pd.DataFrame(yhteenvedot)
+
+                # Metriikat
+                st.markdown("### Keskiarvot valmiista projekteista")
+                c1,c2,c3,c4 = st.columns(4)
+                c1.metric("Projekteja", len(yhteenvedot))
+                c2.metric("Tunnit / projekti (ka.)", f"{df_h['tunnit_yht'].mean():.0f} h")
+                c3.metric("Kesto / projekti (ka.)", f"{df_h['kesto_viikkoja'].mean():.1f} vko")
+                c4.metric("Tekijöitä / projekti (ka.)", f"{df_h['tekijoita'].mean():.1f}")
+
+                st.divider()
+                st.markdown("### Projektit")
+                naytto = df_h[["nimi","valmistunut","kesto_viikkoja","tunnit_yht",
+                                "urakka_h","lisatyo_h","tekijoita"]].copy()
+                naytto.columns = ["Projekti","Valmistui","Kesto (vko)","Tunnit yht.",
+                                   "Urakka (h)","Lisätyö (h)","Tekijöitä"]
+                st.dataframe(naytto, use_container_width=True, hide_index=True)
+
+                st.divider()
+                st.markdown("### 💡 Tarjouslaskennan apuväline")
+                st.markdown("Anna projektin koko (tunnit) niin lasketaan arvio kustannuksista "
+                            "historiatietojen perusteella.")
+                arvio_h = st.number_input("Arvioitu tuntimäärä uudelle projektille",
+                                          min_value=0, step=10, value=500)
+                if arvio_h > 0 and len(yhteenvedot) > 1:
+                    urakka_osuus = df_h["urakka_h"].sum() / df_h["tunnit_yht"].sum()
+                    lisatyo_osuus = 1 - urakka_osuus
+                    st.markdown(f"""
+                    **Arvio {arvio_h} tunnin projektille** (perustuu {len(yhteenvedot)} vanhaan projektiin):
+
+                    | | Arvio |
+                    |---|---|
+                    | Urakkatunnit | {arvio_h * urakka_osuus:.0f} h ({urakka_osuus*100:.0f} %) |
+                    | Lisätyötunnit | {arvio_h * lisatyo_osuus:.0f} h ({lisatyo_osuus*100:.0f} %) |
+                    | Kesto | ~{arvio_h / df_h['tunnit_yht'].mean() * df_h['kesto_viikkoja'].mean():.1f} viikkoa |
+                    | Tekijöitä | ~{arvio_h / df_h['tunnit_yht'].mean() * df_h['tekijoita'].mean():.1f} henkilöä |
+                    """)
