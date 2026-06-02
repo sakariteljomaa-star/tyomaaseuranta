@@ -90,13 +90,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Auth: hallintanäkymä salasanalla, QR-skannaus julkinen ────────────────────
-def _hae_hallinta_salasana() -> str:
-    try:
-        return st.secrets.get("auth", {}).get("kalusto_salasana", "")
-    except Exception:
-        return ""
-
 # ── URL-parametri: onko QR-skannaus? ─────────────────────────────────────────
 params = st.query_params
 skannaus_nro = params.get("kalusto", "").upper().strip()
@@ -207,24 +200,23 @@ if skannaus_nro:
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# HALLINTANÄKYMÄ — salasanalla tai paikallisesti
+# HALLINTANÄKYMÄ — käyttäjähallinta (sama kuin tuntikirjassa)
 # ══════════════════════════════════════════════════════════════════════════════
-hallinta_pw = _hae_hallinta_salasana()
+import auth as A
 
-if hallinta_pw and not st.session_state.get("kalusto_kirjautunut"):
-    st.title("🔧 Kalustoseuranta")
-    st.markdown("---")
-    pw = st.text_input("Hallintasalasana", type="password")
-    if st.button("Kirjaudu", type="primary"):
-        if pw == hallinta_pw:
-            st.session_state["kalusto_kirjautunut"] = True
-            st.rerun()
-        else:
-            st.error("Väärä salasana.")
-    st.stop()
+kayttaja = A.kirjaudu_gate("Kalustoseuranta")
+rooli    = kayttaja["rooli"]
+on_tj    = A.voi_hyvaksya(rooli)            # admin + työnjohtaja
+on_admin = A.voi_hallita_kayttajia(rooli)   # vain admin
 
 st.title("🔧 Kalustoseuranta — Hallinta")
-st.caption("Uudenmaan Asbestipurku Oy")
+st.caption(f"Uudenmaan Asbestipurku Oy  ·  {kayttaja.get('nimi', kayttaja['tunnus'])}  ·  {A.ROOLIT[rooli]['nimi']}")
+
+with st.sidebar:
+    st.caption(f"👤 {kayttaja.get('nimi', kayttaja['tunnus'])}")
+    if st.button("🔓 Kirjaudu ulos", use_container_width=True):
+        A.kirjaudu_ulos()
+        st.rerun()
 
 # App URL (käytetään QR-koodin generointiin)
 try:
@@ -232,13 +224,13 @@ try:
 except Exception:
     app_url = "http://localhost:8503"
 
-tab_yht, tab_qr, tab_laitteet, tab_tuo, tab_historia = st.tabs([
-    "📊 Tilannekuva",
-    "📱 QR-koodit",
-    "🔧 Laiterekisteri",
-    "📥 Tuo Excel",
-    "📋 Tapahtumahistoria",
-])
+valilehti_nimet = ["📊 Tilannekuva", "📱 QR-koodit", "🔧 Laiterekisteri",
+                   "📥 Tuo Excel", "📋 Tapahtumahistoria"]
+if on_admin:
+    valilehti_nimet.append("👤 Käyttäjät")
+_vl = st.tabs(valilehti_nimet)
+tab_yht, tab_qr, tab_laitteet, tab_tuo, tab_historia = _vl[0], _vl[1], _vl[2], _vl[3], _vl[4]
+tab_kayttajat = _vl[5] if on_admin else None
 
 # ── TILANNEKUVA ───────────────────────────────────────────────────────────────
 with tab_yht:
@@ -436,3 +428,8 @@ with tab_historia:
         st.dataframe(df_s[["pvm","klo","laite_nro","tyyppi","tyomaa","tekija","huomio"]],
                      use_container_width=True, hide_index=True)
         st.caption(f"{len(df_s)} tapahtumaa")
+
+# ── KÄYTTÄJÄT (vain admin) ─────────────────────────────────────────────────────
+if tab_kayttajat is not None:
+    with tab_kayttajat:
+        A.nayta_kayttajahallinta()
