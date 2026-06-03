@@ -188,28 +188,41 @@ def _jasenna_ostolasku(inv_xml: str) -> list:
 
 # ── Myyntilaskut ───────────────────────────────────────────────────────────────
 
-def hae_tunnit(creds: dict, alkupvm: str, loppupvm: str) -> pd.DataFrame:
+def hae_tuntikirjanpito(creds: dict, alkupvm: str, loppupvm: str) -> dict:
     """
-    Hakee työtunnit palkkahallinnan rajapinnasta.
-    HUOM: endpoint/kentät varmistettava oikealla vastauksella (käytä raakatutkijaa).
-    Palauttaa DataFrame: tyontekija, pvm, tunnit, palkkalaji.
+    Hakee TYÖTUNNIT (tuntikirjanpito) — ei palkkaeuroja.
+    Palauttaa saman muodon kuin parser_tunnit.lue_tuntikirjanpito:
+        {"projekti": str, "jakso": str, "df": DataFrame[Työntekijä, Työtunnit], "yht_tunnit": float}
+    HUOM: endpoint/kentät varmistettava oikealla vastauksella (raakatutkija).
     """
     xml = pyynto(creds, "payrollperiodrecordlist.nv",
                  {"startdate": alkupvm, "enddate": loppupvm})
     _tarkista_status(xml)
     root = ET.fromstring(xml)
-    rivit = []
+
+    # Kerää tunnit per työntekijä (vain tuntimäärät, ei euroja)
+    per_tekija = {}
     for rec in root.findall(".//PayrollPeriodRecord"):
-        rivit.append({
-            "tyontekija": rec.findtext("EmployeeName") or rec.findtext(".//Name") or "",
-            "pvm":        rec.findtext("Date") or "",
-            "tunnit":     rec.findtext("Amount") or rec.findtext("Quantity") or "0",
-            "palkkalaji": rec.findtext("PayrollRatardName") or rec.findtext("Type") or "",
-        })
-    df = pd.DataFrame(rivit)
-    if not df.empty:
-        df["tunnit"] = pd.to_numeric(df["tunnit"], errors="coerce").fillna(0)
-    return df
+        nimi = rec.findtext("EmployeeName") or rec.findtext(".//Name") or ""
+        yksikko = (rec.findtext("Unit") or rec.findtext("RatardUnit") or "").lower()
+        maara = pd.to_numeric(rec.findtext("Amount") or rec.findtext("Quantity") or "0", errors="coerce")
+        maara = 0 if pd.isna(maara) else float(maara)
+        # Hyväksy vain tuntiperusteiset rivit (h / tunti), ohita € ja kpl
+        if yksikko and not any(u in yksikko for u in ["h", "tunti", "hour"]):
+            continue
+        if nimi:
+            per_tekija[nimi] = per_tekija.get(nimi, 0.0) + maara
+
+    df = pd.DataFrame(
+        [{"Työntekijä": n, "Työtunnit": h} for n, h in per_tekija.items()]
+    )
+    yht = df["Työtunnit"].sum() if not df.empty else 0.0
+    return {
+        "projekti": "",
+        "jakso": f"{alkupvm} – {loppupvm}",
+        "df": df,
+        "yht_tunnit": yht,
+    }
 
 
 def hae_myyntilaskut(creds: dict, alkupvm: str, loppupvm: str, projekti_hakusana: str = "") -> pd.DataFrame:

@@ -169,7 +169,8 @@ with st.sidebar:
             ok, viesti = NV.testaa_yhteys(_creds)
             (st.success if ok else st.error)(viesti)
 
-        if st.button("⬇️ Hae laskut", type="primary", use_container_width=True, key="nv_hae"):
+        if st.button("⬇️ Hae kaikki (ostot, myynti, tunnit)", type="primary",
+                     use_container_width=True, key="nv_hae"):
             haku = projekti.split(",")[0].strip() if projekti else ""
             with st.spinner("Haetaan Netvisorista..."):
                 try:
@@ -178,7 +179,11 @@ with st.sidebar:
                         st.session_state[_k] = df_o
                     df_m = NV.hae_myyntilaskut(_creds, str(_alku), str(_loppu), projekti_hakusana=haku)
                     st.session_state["df_myynti"] = df_m
-                    st.success(f"Haettu: {len(df_o)} ostoriviä, {len(df_m)} myyntilaskua.")
+                    tk = NV.hae_tuntikirjanpito(_creds, str(_alku), str(_loppu))
+                    st.session_state["df_tuntikirjanpito"] = tk["df"]
+                    st.session_state["_tk_meta"] = tk
+                    st.success(f"Haettu: {len(df_o)} ostoriviä · {len(df_m)} myyntilaskua · "
+                               f"{tk['yht_tunnit']:.0f} h tunteja.")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Haku epäonnistui: {e}")
