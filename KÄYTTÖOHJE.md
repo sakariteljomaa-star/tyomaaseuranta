@@ -69,6 +69,36 @@ Pääkäyttäjä lisää käyttäjät **👤 Käyttäjät** -välilehdeltä (nä
 
 ---
 
+## 🔄 Netvisor-automaattihaku (kustannusseuranta)
+
+Sen sijaan että viet XLSX-tiedostoja käsin, kustannusseuranta voi hakea laskut
+**suoraan Netvisorista** napilla. Vaatii kertaluonteisen asennuksen.
+
+**Asennus (kerran):**
+1. Netvisorissa: **Yritysasetukset → Rajapinta / Integraatiot** → luo integraatiotunnukset
+2. Saat: Sender, Customer ID + Customer key, Partner ID + Partner key
+3. Lisää ne kustannusseurannan Streamlit Secretsiin:
+```toml
+[netvisor]
+sender          = "Integraation nimi"
+partner_id      = "..."
+partner_key     = "..."
+customer_id     = "..."
+customer_key    = "..."
+organisation_id = "2817254-1"
+```
+
+**Käyttö:**
+1. Sivupalkki → **🔄 Hae Netvisorista**
+2. **🔌 Testaa yhteys** (varmista että tunnukset toimivat)
+3. Valitse aikaväli → **⬇️ Hae laskut**
+4. Ostot, jätemaksut, aliurakoitsijat, kalusto ja myynti täyttyvät automaattisesti
+
+> ⚠️ Kenttien kohdistus (ALV-tunnus, laskentakohde) voi vaatia pientä hienosäätöä
+> ensimmäisen oikean haun jälkeen — kerro jos jokin sarake näyttää väärältä.
+
+---
+
 ## 💰 Kustannusseuranta — työnkulku
 
 1. Kirjaudu (työnjohtaja/kirjanpitäjä/pääkäyttäjä — ei työntekijä)

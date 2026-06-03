@@ -152,6 +152,37 @@ with st.sidebar:
         xlsx_lkm = len(list(_P(tuontikansio).glob("*.xlsx"))) if _P(tuontikansio).exists() else 0
         st.caption(f"Kansiossa: {xlsx_lkm} .xlsx-tiedostoa")
 
+    # ── Netvisor API — automaattihaku ─────────────────────────────────────────
+    st.divider()
+    st.header("🔄 Hae Netvisorista")
+    import netvisor_api as NV
+    if not NV.on_konfiguroitu(st):
+        st.caption("API-tunnukset puuttuvat. Lisää ne Streamlit Secretsiin "
+                   "[netvisor]-osioon (ks. KÄYTTÖOHJE).")
+    else:
+        _creds = NV.hae_tunnukset(st)
+        _tanaan = date.today()
+        _alku = st.date_input("Alkupäivä", value=_tanaan.replace(day=1), key="nv_alku")
+        _loppu = st.date_input("Loppupäivä", value=_tanaan, key="nv_loppu")
+
+        if st.button("🔌 Testaa yhteys", use_container_width=True, key="nv_test"):
+            ok, viesti = NV.testaa_yhteys(_creds)
+            (st.success if ok else st.error)(viesti)
+
+        if st.button("⬇️ Hae laskut", type="primary", use_container_width=True, key="nv_hae"):
+            haku = projekti.split(",")[0].strip() if projekti else ""
+            with st.spinner("Haetaan Netvisorista..."):
+                try:
+                    df_o = NV.hae_ostolaskut(_creds, str(_alku), str(_loppu))
+                    for _k in ["df_ostot","df_jate","df_ali_osto","df_kalusto","df_kaikki"]:
+                        st.session_state[_k] = df_o
+                    df_m = NV.hae_myyntilaskut(_creds, str(_alku), str(_loppu), projekti_hakusana=haku)
+                    st.session_state["df_myynti"] = df_m
+                    st.success(f"Haettu: {len(df_o)} ostoriviä, {len(df_m)} myyntilaskua.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Haku epäonnistui: {e}")
+
 # ── APUFUNKTIOT ────────────────────────────────────────────────────────────────
 
 def _hae(avain: str) -> pd.DataFrame:
