@@ -188,6 +188,30 @@ def _jasenna_ostolasku(inv_xml: str) -> list:
 
 # ── Myyntilaskut ───────────────────────────────────────────────────────────────
 
+def hae_tunnit(creds: dict, alkupvm: str, loppupvm: str) -> pd.DataFrame:
+    """
+    Hakee työtunnit palkkahallinnan rajapinnasta.
+    HUOM: endpoint/kentät varmistettava oikealla vastauksella (käytä raakatutkijaa).
+    Palauttaa DataFrame: tyontekija, pvm, tunnit, palkkalaji.
+    """
+    xml = pyynto(creds, "payrollperiodrecordlist.nv",
+                 {"startdate": alkupvm, "enddate": loppupvm})
+    _tarkista_status(xml)
+    root = ET.fromstring(xml)
+    rivit = []
+    for rec in root.findall(".//PayrollPeriodRecord"):
+        rivit.append({
+            "tyontekija": rec.findtext("EmployeeName") or rec.findtext(".//Name") or "",
+            "pvm":        rec.findtext("Date") or "",
+            "tunnit":     rec.findtext("Amount") or rec.findtext("Quantity") or "0",
+            "palkkalaji": rec.findtext("PayrollRatardName") or rec.findtext("Type") or "",
+        })
+    df = pd.DataFrame(rivit)
+    if not df.empty:
+        df["tunnit"] = pd.to_numeric(df["tunnit"], errors="coerce").fillna(0)
+    return df
+
+
 def hae_myyntilaskut(creds: dict, alkupvm: str, loppupvm: str, projekti_hakusana: str = "") -> pd.DataFrame:
     """Hakee myyntilaskut aikaväliltä → parser_myynti.py-yhteensopiva DataFrame."""
     lista_xml = pyynto(creds, "salesinvoicelist.nv",

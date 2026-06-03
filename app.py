@@ -183,6 +183,27 @@ with st.sidebar:
                 except Exception as e:
                     st.error(f"Haku epäonnistui: {e}")
 
+        # ── Raakavastauksen tutkija (kehitys/kenttien kohdistus) ───────────
+        if on_admin:
+            with st.expander("🔍 Raakavastauksen tutkija"):
+                st.caption("Tutki Netvisorin XML-vastausta kenttien kohdistamiseksi.")
+                _ep = st.text_input("Endpoint", value="purchaseinvoicelist.nv",
+                                    key="nv_ep",
+                                    help="esim. companyinformation.nv, purchaseinvoicelist.nv, "
+                                         "getpurchaseinvoice.nv, salesinvoicelist.nv")
+                _par = st.text_input("Parametrit (avain=arvo&avain=arvo)", value="",
+                                     key="nv_par",
+                                     placeholder="begininvoicedate=2026-05-01&endinvoicedate=2026-05-31")
+                if st.button("Hae raaka XML", key="nv_raaka"):
+                    try:
+                        params = dict(p.split("=", 1) for p in _par.split("&") if "=" in p)
+                        xml = NV.pyynto(_creds, _ep.strip(), params)
+                        st.session_state["_nv_raaka_xml"] = xml
+                    except Exception as e:
+                        st.error(f"Virhe: {e}")
+                if st.session_state.get("_nv_raaka_xml"):
+                    st.code(st.session_state["_nv_raaka_xml"][:5000], language="xml")
+
 # ── APUFUNKTIOT ────────────────────────────────────────────────────────────────
 
 def _hae(avain: str) -> pd.DataFrame:
