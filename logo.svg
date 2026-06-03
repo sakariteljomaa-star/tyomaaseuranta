@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 130" width="480" height="130">
+  <rect width="480" height="130" fill="#111111"/>
+
+  <!-- Row 1: Uudenmaan -->
+  <text
+    x="20" y="52"
+    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="42" font-weight="300" letter-spacing="1"
+    fill="#e8e8e8">Uudenmaan</text>
+
+  <!-- Row 2: Asbestipurku -->
+  <text
+    x="20" y="102"
+    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="42" font-weight="700" letter-spacing="0.5"
+    fill="#F5C400">Asbestipurku</text>
+
+  <!-- WRECKING BALL ICON replacing "O" in Oy -->
+  <!-- Circle outline (the O shape) centered at 370, y-center ~84 -->
+  <circle cx="370" cy="84" r="22" fill="#111111" stroke="#e8e8e8" stroke-width="2.5"/>
+
+  <!-- Chain: from top-left of circle going diagonally to ball -->
+  <!-- Chain links along diagonal from ~(352,63) to ~(362,76) -->
+  <line x1="351" y1="62" x2="363" y2="77" stroke="#e8e8e8" stroke-width="1.5" stroke-linecap="round"/>
+  <ellipse cx="354" cy="66" rx="2.5" ry="4" fill="none" stroke="#e8e8e8" stroke-width="1.5" transform="rotate(-40 354 66)"/>
+  <ellipse cx="358" cy="72" rx="2.5" ry="4" fill="none" stroke="#e8e8e8" stroke-width="1.5" transform="rotate(-40 358 72)"/>
+
+  <!-- Wrecking ball: dark, bottom-right area inside circle -->
+  <circle cx="376" cy="91" r="11" fill="#222222" stroke="#e8e8e8" stroke-width="1.5"/>
+  <!-- Ball sheen -->
+  <circle cx="372" cy="87" r="3.5" fill="#555555" opacity="0.7"/>
+  <!-- Motion lines (speed lines to the left of ball) -->
+  <line x1="350" y1="88" x2="362" y2="89" stroke="#e8e8e8" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/>
+  <line x1="349" y1="92" x2="362" y2="92" stroke="#e8e8e8" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
+  <line x1="351" y1="96" x2="362" y2="95" stroke="#e8e8e8" stroke-width="1.2" stroke-linecap="round" opacity="0.3"/>
+
+  <!-- "y" after the ball icon -->
+  <text
+    x="396" y="102"
+    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="42" font-weight="300"
+    fill="#e8e8e8">y</text>
+</svg>

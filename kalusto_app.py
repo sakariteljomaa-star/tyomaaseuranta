@@ -81,7 +81,15 @@ TYYPPI_LABEL = {
 }
 
 # ── Sivun asetukset ────────────────────────────────────────────────────────────
-st.set_page_config(page_title="Kalustoseuranta", page_icon="🔧", layout="wide")
+_LOGO = str(Path(__file__).parent / "logo.png")
+_FAVI = str(Path(__file__).parent / "favicon.png")
+st.set_page_config(page_title="Kalustoseuranta",
+                   page_icon=_FAVI if Path(_FAVI).exists() else "🔧", layout="wide")
+if Path(_LOGO).exists():
+    try:
+        st.logo(_LOGO, size="large")
+    except Exception:
+        pass
 
 st.markdown("""
 <style>

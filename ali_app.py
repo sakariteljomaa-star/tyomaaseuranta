@@ -86,12 +86,19 @@ def _hae_projektit() -> list:
     return hae_projektit()
 
 # ── Sivun asetukset ────────────────────────────────────────────────────────────
+_LOGO = str(Path(__file__).parent / "logo.png")
+_FAVI = str(Path(__file__).parent / "favicon.png")
 st.set_page_config(
     page_title="Ali-tuntikirja",
-    page_icon="👷",
+    page_icon=_FAVI if Path(_FAVI).exists() else "👷",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+if Path(_LOGO).exists():
+    try:
+        st.logo(_LOGO, size="large")
+    except Exception:
+        pass
 
 # ── Käyttäjähallinta ja kirjautuminen ──────────────────────────────────────────
 import random, string

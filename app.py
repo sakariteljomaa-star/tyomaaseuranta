@@ -18,7 +18,16 @@ from storage import (
 )
 from kansiotuonti import lue_kansio, oletus_kansio
 
-st.set_page_config(page_title="Työmaaseuranta", page_icon="🏗️", layout="wide")
+from pathlib import Path as _Path
+_LOGO = str(_Path(__file__).parent / "logo.png")
+_FAVI = str(_Path(__file__).parent / "favicon.png")
+_icon = _FAVI if _Path(_FAVI).exists() else "🏗️"
+st.set_page_config(page_title="Työmaaseuranta", page_icon=_icon, layout="wide")
+if _Path(_LOGO).exists():
+    try:
+        st.logo(_LOGO, size="large")
+    except Exception:
+        pass
 
 # ── Käyttäjähallinta ja roolitukset ────────────────────────────────────────────
 import auth as A
