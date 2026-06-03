@@ -96,6 +96,13 @@ Näin vaikka avain vuotaisi, sillä voi vain lukea — ei muuttaa tai maksaa mit
 
 ---
 
+## 6b. Toimintaloki
+
+Järjestelmä kirjaa turvallisuuskriittiset tapahtumat `loki`-tauluun:
+kirjautumiset, käyttäjämuutokset, tuntien hyväksynnät ja Netvisor-haut
+(käyttäjä + aikaleima + kohde). Admin näkee lokin 👤 Käyttäjät → 📜 Toimintaloki.
+Loki auttaa väärinkäytösten selvittämisessä ja vastuun osoittamisessa.
+
 ## 7. Henkilötiedot (GDPR)
 
 - Järjestelmä sisältää henkilötietoja (nimet, työtunnit). Ks. `TIETOSUOJASELOSTE.md`.
