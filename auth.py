@@ -172,6 +172,11 @@ def kirjaudu_gate(sovellus_nimi: str = "Työmaaseuranta") -> dict:
                 # Älä tallenna hashia session_stateen
                 julkinen = {kk: vv for kk, vv in k.items() if kk not in ("hash", "suola")}
                 st.session_state["kayttaja"] = julkinen
+                try:
+                    from loki import kirjaa
+                    kirjaa(julkinen, sovellus_nimi, "Kirjautui sisään")
+                except Exception:
+                    pass
                 st.rerun()
             else:
                 st.error("Väärä salasana.")
@@ -184,6 +189,44 @@ def kirjaudu_ulos():
 
 
 # ── Käyttäjähallinnan UI (vain admin) ──────────────────────────────────────────
+
+def _loki(toiminto: str, kohde: str = ""):
+    """Kirjaa käyttäjähallinnan tapahtuman lokiin (turvallinen)."""
+    try:
+        from loki import kirjaa
+        kirjaa(st.session_state.get("kayttaja", {}), "Käyttäjähallinta", toiminto, kohde)
+    except Exception:
+        pass
+
+
+def nayta_loki():
+    """Toimintaloki — vain admin."""
+    st.subheader("📜 Toimintaloki")
+    try:
+        from loki import hae
+        import pandas as pd
+        rivit = hae(500)
+        if not rivit:
+            st.info("Ei lokitapahtumia (tai loki-taulua ei ole vielä luotu Supabaseen).")
+            return
+        df = pd.DataFrame(rivit)
+        sarakkeet = [c for c in ["aika","kayttaja","rooli","sovellus","toiminto","kohde"] if c in df.columns]
+        df = df[sarakkeet]
+        # Suodattimet
+        c1, c2 = st.columns(2)
+        if "kayttaja" in df.columns:
+            k = c1.multiselect("Käyttäjä", sorted(df["kayttaja"].dropna().unique()))
+            if k:
+                df = df[df["kayttaja"].isin(k)]
+        if "sovellus" in df.columns:
+            s = c2.multiselect("Sovellus", sorted(df["sovellus"].dropna().unique()))
+            if s:
+                df = df[df["sovellus"].isin(s)]
+        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.caption(f"{len(df)} tapahtumaa (uusimmat ensin, max 500)")
+    except Exception as e:
+        st.info(f"Lokia ei voitu ladata: {e}")
+
 
 def nayta_kayttajahallinta():
     st.subheader("👤 Käyttäjähallinta")
@@ -222,6 +265,7 @@ def nayta_kayttajahallinta():
             ok, viesti = luo_kayttaja(u_tunnus, u_nimi, u_pw, u_rooli, u_projektit)
             st.success(viesti) if ok else st.error(viesti)
             if ok:
+                _loki("Loi käyttäjän", f"{u_tunnus} ({u_rooli})")
                 st.rerun()
 
     # Muokkaa / poista
@@ -241,6 +285,8 @@ def nayta_kayttajahallinta():
             if b1.button("💾 Tallenna muutokset", type="primary", key="mk_tall"):
                 paivita_kayttaja(valittu, nimi=m_nimi, rooli=m_rooli,
                                  aktiivinen=m_aktiivinen, salasana=m_pw)
+                muutos = "salasana vaihdettu" if m_pw else f"rooli={m_rooli}, aktiivinen={m_aktiivinen}"
+                _loki("Muokkasi käyttäjää", f"{valittu} ({muutos})")
                 st.success("Tallennettu.")
                 st.rerun()
             # Estä oman tai viimeisen adminin poisto
@@ -253,5 +299,6 @@ def nayta_kayttajahallinta():
                     st.error("Vähintään yksi pääkäyttäjä vaaditaan.")
                 else:
                     poista_kayttaja(valittu)
+                    _loki("Poisti käyttäjän", valittu)
                     st.success("Poistettu.")
                     st.rerun()

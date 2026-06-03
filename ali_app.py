@@ -674,6 +674,12 @@ with tab_vkoyht:
 
         if hyv_muutettu:
             tallenna_ali_tunnit(projekti, ali_rivit)
+            try:
+                from loki import kirjaa
+                kirjaa(kayttaja, "Tuntikirja", "Muutti hyväksyntätilaa",
+                       f"{projekti} vko {viikko}/{vuosi}")
+            except Exception:
+                pass
             st.rerun()
 
         # Yhteenveto hyväksyntätilanteesta
@@ -1017,3 +1023,5 @@ if tab_historia is not None:
 if tab_kayttajat is not None:
     with tab_kayttajat:
         A.nayta_kayttajahallinta()
+        st.divider()
+        A.nayta_loki()

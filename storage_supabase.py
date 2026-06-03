@@ -124,6 +124,35 @@ def tallenna_globaali(avain: str, data: list) -> bool:
         return False
 
 
+# ── Toimintaloki ───────────────────────────────────────────────────────────────
+
+def lisaa_loki(rivi: dict) -> bool:
+    """Lisää yhden lokirivin loki-tauluun. aika täytetään palvelimella (default now())."""
+    base, headers = _conf()
+    if not base:
+        return False
+    try:
+        r = requests.post(f"{base}/loki", headers=headers,
+                          data=json.dumps(rivi), timeout=10)
+        return r.status_code < 400
+    except Exception:
+        return False  # loki ei saa koskaan kaataa sovellusta
+
+
+def hae_loki(rajoitus: int = 500) -> list:
+    base, headers = _conf()
+    if not base:
+        return []
+    try:
+        r = requests.get(f"{base}/loki", headers=headers,
+                         params={"select": "*", "order": "aika.desc", "limit": str(rajoitus)},
+                         timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        return []
+
+
 # ── Projektilista ──────────────────────────────────────────────────────────────
 
 def hae_projektit() -> list:

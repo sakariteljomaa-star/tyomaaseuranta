@@ -184,6 +184,12 @@ with st.sidebar:
                     st.session_state["_tk_meta"] = tk
                     st.success(f"Haettu: {len(df_o)} ostoriviä · {len(df_m)} myyntilaskua · "
                                f"{tk['yht_tunnit']:.0f} h tunteja.")
+                    try:
+                        from loki import kirjaa
+                        kirjaa(kayttaja, "Kustannusseuranta", "Haki Netvisorista",
+                               f"{_alku}–{_loppu} ({len(df_o)} ostoa, {len(df_m)} myyntiä)")
+                    except Exception:
+                        pass
                     st.rerun()
                 except Exception as e:
                     st.error(f"Haku epäonnistui: {e}")
@@ -742,3 +748,5 @@ if dfs_osto_dl:
 if tab_kayttajat is not None:
     with tab_kayttajat:
         A.nayta_kayttajahallinta()
+        st.divider()
+        A.nayta_loki()

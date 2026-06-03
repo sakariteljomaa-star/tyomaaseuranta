@@ -446,3 +446,5 @@ with tab_historia:
 if tab_kayttajat is not None:
     with tab_kayttajat:
         A.nayta_kayttajahallinta()
+        st.divider()
+        A.nayta_loki()
