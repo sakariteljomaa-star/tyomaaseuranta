@@ -90,6 +90,7 @@ if Path(_LOGO).exists():
         st.logo(_LOGO, size="large")
     except Exception:
         pass
+st.markdown("<style>img[data-testid='stLogo']{height:3rem;}</style>", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
@@ -111,6 +112,8 @@ tapahtumat = lataa_tapahtumat()
 if skannaus_nro:
     laite = _hae_laite(skannaus_nro, laitteet)
 
+    if Path(_LOGO).exists():
+        st.image(_LOGO, width=240)
     st.title(f"🔧 {skannaus_nro}")
 
     if not laite:
@@ -217,8 +220,10 @@ rooli    = kayttaja["rooli"]
 on_tj    = A.voi_hyvaksya(rooli)            # admin + työnjohtaja
 on_admin = A.voi_hallita_kayttajia(rooli)   # vain admin
 
+if Path(_LOGO).exists():
+    st.image(_LOGO, width=280)
 st.title("🔧 Kalustoseuranta — Hallinta")
-st.caption(f"Uudenmaan Asbestipurku Oy  ·  {kayttaja.get('nimi', kayttaja['tunnus'])}  ·  {A.ROOLIT[rooli]['nimi']}")
+st.caption(f"{kayttaja.get('nimi', kayttaja['tunnus'])}  ·  {A.ROOLIT[rooli]['nimi']}")
 
 with st.sidebar:
     st.caption(f"👤 {kayttaja.get('nimi', kayttaja['tunnus'])}")

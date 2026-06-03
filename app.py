@@ -28,6 +28,8 @@ if _Path(_LOGO).exists():
         st.logo(_LOGO, size="large")
     except Exception:
         pass
+# Isonna sivupalkin yläosan logoa
+st.markdown("<style>img[data-testid='stLogo']{height:3rem;}</style>", unsafe_allow_html=True)
 
 # ── Käyttäjähallinta ja roolitukset ────────────────────────────────────────────
 import auth as A
@@ -52,8 +54,9 @@ with st.sidebar:
         A.kirjaudu_ulos()
         st.rerun()
 
+if _Path(_LOGO).exists():
+    st.image(_LOGO, width=300)
 st.title("🏗️ Työmaaseuranta – Kustannusseuranta")
-st.caption("Uudenmaan Asbestipurku Oy")
 
 EURO   = lambda x: f"{x:,.2f} €".replace(",", " ").replace(".", ",")
 PAIVAT = ["ma","ti","ke","to","pe","la","su"]
