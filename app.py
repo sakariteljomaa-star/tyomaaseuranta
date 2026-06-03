@@ -50,9 +50,22 @@ EURO   = lambda x: f"{x:,.2f} €".replace(",", " ").replace(".", ",")
 PAIVAT = ["ma","ti","ke","to","pe","la","su"]
 
 # ── SIVUPALKKI: vain asetukset ─────────────────────────────────────────────────
+from storage import lataa_projektirekisteri
 with st.sidebar:
     st.header("Projekti")
-    projekti = st.text_input("Projektin nimi", placeholder="esim. Valteri-koulu, Tenholantie 15")
+    # Projektivalikko samasta rekisteristä kuin tuntikirja → nimet täsmäävät aina
+    _rekisteri = lataa_projektirekisteri()
+    _proj_nimet = [p["nimi"] for p in _rekisteri]
+    if _proj_nimet:
+        projekti = st.selectbox("Projekti", _proj_nimet,
+                                help="Sama projektilista kuin tuntikirjassa. "
+                                     "Tunnit ja palkat siirtyvät automaattisesti.")
+        with st.expander("Tai kirjoita käsin"):
+            _kasin = st.text_input("Projektin nimi (käsin)", placeholder="vain jos ei valikossa")
+            if _kasin.strip():
+                projekti = _kasin.strip()
+    else:
+        projekti = st.text_input("Projektin nimi", placeholder="esim. Valteri-koulu, Tenholantie 15")
     yritys   = st.text_input("Yritys", value="Uudenmaan Asbestipurku Oy")
     st.divider()
     st.header("Asetukset")
