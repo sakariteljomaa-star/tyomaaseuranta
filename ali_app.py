@@ -1024,4 +1024,5 @@ if tab_kayttajat is not None:
     with tab_kayttajat:
         A.nayta_kayttajahallinta()
         st.divider()
-        A.nayta_loki()
+        if hasattr(A, "nayta_loki"):
+            A.nayta_loki()
