@@ -4,7 +4,29 @@ Käyttää sarakkeiden nimiä indeksien sijaan — toimii eri Netvisor-vientiver
 """
 
 import pandas as pd
+import re
 from datetime import date
+
+
+def _normalisoi(s) -> str:
+    """Pienet kirjaimet, välimerkit ja väliviivat välilyönneiksi."""
+    s = str(s).lower()
+    return re.sub(r"[^a-zåäö0-9]+", " ", s)
+
+
+def _vastaa_projektia(teksti, hakusana: str) -> bool:
+    """
+    Sanapohjainen projektihaku — kestää väliviivat ja taivutukset.
+    'Valteri-koulu' osuu 'Valterin koulu', 'tenholantie' toimii tunnisteena.
+    Riittää että yksi vähintään 4-merkkinen sana hakusanasta löytyy tekstistä.
+    """
+    if not hakusana:
+        return True
+    t = _normalisoi(teksti)
+    tokenit = [w for w in _normalisoi(hakusana).split() if len(w) >= 4]
+    if not tokenit:
+        return _normalisoi(hakusana).strip() in t
+    return any(w in t for w in tokenit)
 
 
 def _luokittele_kategoria(teksti: str) -> str:
@@ -92,7 +114,7 @@ def _lue_laskentakohde_myynti(df_raw, projekti_hakusana: str = "") -> pd.DataFra
     tulos["_laskentakohde"] = df[10].astype(str)
 
     if projekti_hakusana:
-        maski = tulos["vapaa_teksti"].str.lower().str.contains(projekti_hakusana.lower(), na=False)
+        maski = tulos["vapaa_teksti"].apply(lambda t: _vastaa_projektia(t, projekti_hakusana))
         tulos = tulos[maski].copy()
 
     # Kategoria laskentakohteen mukaan: LISÄTYÖT → Lisätyö, muuten Urakka
@@ -149,8 +171,7 @@ def lue_myyntireskontra(tiedosto, projekti_hakusana: str = "") -> pd.DataFrame:
 
     # Suodata projektin mukaan
     if projekti_hakusana:
-        maski = tulos["vapaa_teksti"].str.lower().str.contains(
-            projekti_hakusana.lower(), na=False)
+        maski = tulos["vapaa_teksti"].apply(lambda t: _vastaa_projektia(t, projekti_hakusana))
         tulos = tulos[maski].copy()
 
     # Luokittelu
