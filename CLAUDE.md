@@ -153,8 +153,9 @@ kirjoitukset (virhe 42501). Avain VAIN Streamlit Secretsiin, ei koskaan GitHubii
   törmäsi `for t in ...` -silmukkamuuttujiin ja varjostui → NameError. Älä nimeä uudelleen.
 - **F-string + kenoviiva:** Python <3.12 ei salli kenoviivaa f-stringin lausekkeessa.
   Laske arvo muuttujaan ensin (esim. `_css = _tila_css(...)` ja `f"...{_css}..."`).
-- **Supabase RLS:** secret-avain ohittaa sen. Jos käytät anon/publishable-avainta,
-  RLS estää kirjoitukset → käytä secret-avainta.
+- **Supabase RLS:** on PÄÄLLÄ kaikissa tauluissa (ei policy-sääntöjä). Secret-avain
+  ohittaa RLS:n → toimii. Publishable/anon-avain estyy → virhe 42501. Käytä AINA
+  secret-avainta kaikissa kolmessa sovelluksessa.
 - **`runtime.txt` ei toimi Streamlit Cloudissa** (Heroku-konventio). Python-versio
   valitaan appin Advanced settings -kohdassa.
 - **Älä pinniä `supabase`-kirjastoa:** se aiheutti loputtomia httpx/gotrue/pydantic-

@@ -56,9 +56,11 @@ GitHubiin, koodiin eikä kuvakaappauksiin. Vain Streamlitin Secrets-kenttään.
 - **Jos secret-avain vuotaa:** Supabase → Project Settings → API → luo uusi avain
   (rotaatio) ja päivitä se kaikkien kolmen sovelluksen Secretseihin.
 
-> RLS (Row Level Security) on pois päältä, koska pääsyä rajaa secret-avain
-> (palvelinpuolella) + sovelluksen oma käyttäjäkirjautuminen. Tämä on riittävä
-> taso pienelle sisäiselle työkalulle.
+> RLS (Row Level Security) on **päällä** kaikissa tauluissa (loki, projekti_data,
+> globaali_data). Secret-avain ohittaa RLS:n → sovellukset toimivat. Anon/publishable-
+> avain estyy kokonaan (ei policy-sääntöjä). Tämä sulkee teoreettisen aukon ja
+> poistaa Supabasen tietoturvavaroituksen. HUOM: kaikkien sovellusten secrets:issä
+> on oltava secret-avain — publishable-avain antaisi virheen 42501.
 
 ---
 
