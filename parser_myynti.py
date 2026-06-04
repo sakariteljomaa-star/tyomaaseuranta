@@ -63,8 +63,55 @@ def _etsi_sarake(otsikot: list, vaihtoehdot: list, tarkka: bool = False):
     return None
 
 
+def _lue_laskentakohde_myynti(df_raw, projekti_hakusana: str = "") -> pd.DataFrame:
+    """
+    Lukee myyntilaskut LASKENTAKOHDERAPORTISTA (11-sarakkeinen muoto, sama kuin ostot).
+    Poimii ML Myyntilasku -rivit (summa Kredit-sarakkeessa).
+    Sarakkeet: 0 Päiväys, 1 Tositelaji, 3 Lasku, 6 Debet, 7 Kredit, 9 Selite, 10 Laskentakohteet.
+    """
+    df = df_raw.iloc[1:].reset_index(drop=True)  # ohita otsikkorivi
+    df.columns = range(len(df.columns))
+    df = df.dropna(how="all").reset_index(drop=True)
+
+    # Vain myyntilaskurivit
+    df = df[df[1].astype(str).str.contains("Myyntilasku", case=False, na=False)].copy()
+    if df.empty:
+        return pd.DataFrame()
+
+    tulos = pd.DataFrame()
+    tulos["lasku_nro"]     = df[3]
+    tulos["lasku_pvm"]     = pd.to_datetime(df[0], errors="coerce")
+    tulos["erapaiva"]      = pd.NaT
+    debet  = pd.to_numeric(df[6], errors="coerce").fillna(0)
+    kredit = pd.to_numeric(df[7], errors="coerce").fillna(0)
+    tulos["summa"]         = kredit - debet           # myynti = kredit
+    tulos["avoimena"]      = 0                          # tila ei ole tässä raportissa
+    tulos["vapaa_teksti"]  = (df[10].astype(str) + " " + df[9].astype(str))
+    tulos["sisalto"]       = df[9].astype(str)
+    tulos["tila_netvisor"] = ""
+    tulos["_laskentakohde"] = df[10].astype(str)
+
+    if projekti_hakusana:
+        maski = tulos["vapaa_teksti"].str.lower().str.contains(projekti_hakusana.lower(), na=False)
+        tulos = tulos[maski].copy()
+
+    # Kategoria laskentakohteen mukaan: LISÄTYÖT → Lisätyö, muuten Urakka
+    from classifier import luokittele_kategoria
+    tulos["kategoria"] = tulos["_laskentakohde"].apply(luokittele_kategoria)
+    tulos = tulos.drop(columns=["_laskentakohde"])
+    tulos["tila"]      = "📄 Laskutettu"               # raportti ei kerro maksutilaa
+    tulos = tulos[tulos["lasku_nro"].notna()].reset_index(drop=True)
+    return tulos.sort_values("lasku_pvm", ascending=False).reset_index(drop=True)
+
+
 def lue_myyntireskontra(tiedosto, projekti_hakusana: str = "") -> pd.DataFrame:
     df_raw = pd.read_excel(tiedosto, sheet_name=0, header=None)
+
+    # Tunnista muoto otsikkorivistä
+    otsikot_kaikki = " ".join(str(v).lower() for v in df_raw.iloc[0].tolist() if pd.notna(v))
+    if "laskunumero" not in otsikot_kaikki and "tositelaji" in otsikot_kaikki:
+        # Laskentakohderaportti-muoto (11 saraketta, ML Myyntilasku -rivit)
+        return _lue_laskentakohde_myynti(df_raw, projekti_hakusana)
 
     # Otsikkorivi: etsitään rivi jossa on "Laskunumero"
     otsikkorivi = 0
