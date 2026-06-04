@@ -263,7 +263,10 @@ def nayta_kayttajahallinta():
                                           proj_nimet, key="uk_proj")
         if st.button("Luo käyttäjä", type="primary", key="uk_luo"):
             ok, viesti = luo_kayttaja(u_tunnus, u_nimi, u_pw, u_rooli, u_projektit)
-            st.success(viesti) if ok else st.error(viesti)
+            if ok:
+                st.success(viesti)
+            else:
+                st.error(viesti)
             if ok:
                 _loki("Loi käyttäjän", f"{u_tunnus} ({u_rooli})")
                 st.rerun()

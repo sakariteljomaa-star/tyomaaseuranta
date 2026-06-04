@@ -167,7 +167,10 @@ with st.sidebar:
 
         if st.button("🔌 Testaa yhteys", use_container_width=True, key="nv_test"):
             ok, viesti = NV.testaa_yhteys(_creds)
-            (st.success if ok else st.error)(viesti)
+            if ok:
+                st.success(viesti)
+            else:
+                st.error(viesti)
 
         if st.button("⬇️ Hae kaikki (ostot, myynti, tunnit)", type="primary",
                      use_container_width=True, key="nv_hae"):
@@ -303,8 +306,10 @@ with tab_myynti:
                 st.session_state["df_myynti"] = df_m
                 st.session_state["df_myynti_merkki"] = merkki
             n = len(_hae("df_myynti"))
-            st.success(f"Ladattu {n} laskua.") if n else st.warning(
-                "Ei laskuja. Tarkista tiedosto tai projektin nimi (suodatus).")
+            if n:
+                st.success(f"Ladattu {n} laskua.")
+            else:
+                st.warning("Ei laskuja. Tarkista tiedosto tai projektin nimi (suodatus).")
 
     df_myynti = _hae("df_myynti")
     if df_myynti.empty:
