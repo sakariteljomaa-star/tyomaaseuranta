@@ -229,11 +229,18 @@ def _import_ostot(state_avain: str, widget_avain: str, ohje: str = ""):
         f = st.file_uploader("Laskentakohderaportti .xlsx (voit valita useita)",
                              type=["xlsx"], accept_multiple_files=True, key=widget_avain)
         if f:
-            with st.spinner("Luetaan..."):
-                df = yhdista_tiedostot(f)
-            st.session_state[state_avain] = df
-            st.success(f"Ladattu {len(df)} riviä.")
-            st.rerun()
+            merkki = "|".join(sorted(f"{x.name}:{x.size}" for x in f))
+            if st.session_state.get(state_avain + "_merkki") != merkki:
+                with st.spinner("Luetaan..."):
+                    df = yhdista_tiedostot(f)
+                st.session_state[state_avain] = df
+                st.session_state[state_avain + "_merkki"] = merkki
+            n = len(_hae(state_avain))
+            if n:
+                st.success(f"Ladattu {n} riviä.")
+            else:
+                st.warning("Tiedostosta ei löytynyt rivejä. Tarkista että se on "
+                           "Netvisor laskentakohderaportti (.xlsx).")
 
 def _nayta_kululaji(df_kaikki, kululaji, sarakkeet):
     osa = df_kaikki[df_kaikki["kululaji"] == kululaji].copy()
@@ -288,12 +295,16 @@ with tab_myynti:
         st.caption("Netvisor → Myynti → Myyntireskontra → vie Exceliin")
         myynti_f = st.file_uploader("Myyntireskontra .xlsx", type=["xlsx"], key="myynti_up")
         if myynti_f:
-            haku = projekti.split(",")[0].strip() if projekti else ""
-            with st.spinner("Luetaan..."):
-                df_m = lue_myyntireskontra(myynti_f, projekti_hakusana=haku)
-            st.session_state["df_myynti"] = df_m
-            st.success(f"Ladattu {len(df_m)} laskua.")
-            st.rerun()
+            merkki = f"{myynti_f.name}:{myynti_f.size}"
+            if st.session_state.get("df_myynti_merkki") != merkki:
+                haku = projekti.split(",")[0].strip() if projekti else ""
+                with st.spinner("Luetaan..."):
+                    df_m = lue_myyntireskontra(myynti_f, projekti_hakusana=haku)
+                st.session_state["df_myynti"] = df_m
+                st.session_state["df_myynti_merkki"] = merkki
+            n = len(_hae("df_myynti"))
+            st.success(f"Ladattu {n} laskua.") if n else st.warning(
+                "Ei laskuja. Tarkista tiedosto tai projektin nimi (suodatus).")
 
     df_myynti = _hae("df_myynti")
     if df_myynti.empty:
@@ -342,10 +353,13 @@ with tab_tunnit:
         st.caption("Netvisor → Palkka → Tuntikirjanpito → suodata laskentakohde → vie Exceliin")
         tunti_f = st.file_uploader("Tuntikirjanpito .xlsx", type=["xlsx"], key="tuntikirjanpito")
         if tunti_f:
-            tulos = lue_tuntikirjanpito(tunti_f)
-            st.session_state["df_tuntikirjanpito"] = tulos["df"]
-            st.session_state["_tk_meta"] = tulos
-            st.rerun()
+            merkki = f"{tunti_f.name}:{tunti_f.size}"
+            if st.session_state.get("df_tuntikirjanpito_merkki") != merkki:
+                tulos = lue_tuntikirjanpito(tunti_f)
+                st.session_state["df_tuntikirjanpito"] = tulos["df"]
+                st.session_state["_tk_meta"] = tulos
+                st.session_state["df_tuntikirjanpito_merkki"] = merkki
+            st.success("Tuntikirjanpito ladattu.")
 
     df_tk = _hae("df_tuntikirjanpito")
     if not df_tk.empty:
