@@ -27,6 +27,11 @@ def _pilvessa() -> bool:
         return False
 
 
+def tallennustila() -> str:
+    """Palauttaa 'pilvi' tai 'paikallinen' — kertoo säilyykö data restartissa."""
+    return "pilvi" if _pilvessa() else "paikallinen"
+
+
 # ── Paikalliset apufunktiot ───────────────────────────────────────────────────
 
 def _slug(projekti: str) -> str:

@@ -131,6 +131,15 @@ def kirjaudu_gate(sovellus_nimi: str = "Työmaaseuranta") -> dict:
     # ── Ensikäynnistys: luo pääkäyttäjä jos rekisteri tyhjä ────────────────
     if not kayttajat:
         st.title(f"🔧 {sovellus_nimi} — alkuasennus")
+        try:
+            from storage import tallennustila
+            if tallennustila() != "pilvi":
+                st.error("⚠️ TALLENNUS EI OLE PILVESSÄ! Tämän sovelluksen Streamlit "
+                         "Secretsistä puuttuu toimiva [supabase]-osio (secret-avain). "
+                         "Jos luot käyttäjän nyt, se KATOAA uudelleenkäynnistyksessä. "
+                         "Korjaa secrets ensin.")
+        except Exception:
+            pass
         st.info("Ei käyttäjiä vielä. Luo ensimmäinen pääkäyttäjä (admin).")
         with st.form("luo_admin"):
             a_tunnus = st.text_input("Käyttäjätunnus", placeholder="esim. sakari")
@@ -230,6 +239,15 @@ def nayta_loki():
 
 def nayta_kayttajahallinta():
     st.subheader("👤 Käyttäjähallinta")
+    try:
+        from storage import tallennustila
+        if tallennustila() == "pilvi":
+            st.caption("💾 Tallennus: ☁️ Supabase (säilyy)")
+        else:
+            st.error("⚠️ Tallennus: PAIKALLINEN — data katoaa uudelleenkäynnistyksessä! "
+                     "Lisää [supabase]-secret tähän sovellukseen.")
+    except Exception:
+        pass
     kayttajat = lataa_kayttajat()
 
     # Lista
