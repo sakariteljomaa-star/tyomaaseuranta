@@ -25,6 +25,12 @@ def lue_netvisor(tiedosto) -> pd.DataFrame:
     """Lukee yhden Netvisor-XLSX-tiedoston, palauttaa luokiteltujen rivien DataFramen."""
     df = pd.read_excel(tiedosto, sheet_name=0, header=None)
 
+    # Varmista että tämä on laskentakohderaportti (11 saraketta, oikea otsikko)
+    otsikko = " ".join(str(v).lower() for v in df.iloc[0].tolist() if pd.notna(v))
+    if df.shape[1] < 11 or "tositelaji" not in otsikko or "laskentakohteet" not in otsikko:
+        raise ValueError("Ei laskentakohderaportti — tarkista että viet "
+                         "Raportit → Laskentakohderaportti → Excel.")
+
     # Otsikkorivi on rivi 0, data alkaa rivistä 2 (rivi 1 = alkusaldo)
     df = df.iloc[2:].reset_index(drop=True)
     df = df.rename(columns=SARAKKEET)
