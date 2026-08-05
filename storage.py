@@ -112,6 +112,24 @@ def tallenna_palkat(projekti: str, rivit: list) -> None:
         _tallenna_json(projekti, data)
 
 
+def lataa_projekti_avain(projekti: str, avain: str) -> list:
+    """Yleiskäyttöinen projektikohtaisen datan luku (esim. asbesti_dok)."""
+    if _pilvessa():
+        from storage_supabase import lataa_projekti
+        return lataa_projekti(projekti, avain)
+    return _lataa_json(projekti).get(avain, [])
+
+
+def tallenna_projekti_avain(projekti: str, avain: str, data: list) -> None:
+    if _pilvessa():
+        from storage_supabase import tallenna_projekti
+        tallenna_projekti(projekti, avain, data)
+    else:
+        d = _lataa_json(projekti)
+        d[avain] = data
+        _tallenna_json(projekti, d)
+
+
 def lataa_globaali(avain: str) -> list:
     """Globaali (ei-projektikohtainen) data, esim. kalustorekisteri."""
     if _pilvessa():
@@ -211,6 +229,80 @@ def tallenna_ammattinimikkeet(nimikkeet: list) -> None:
         import json
         polku = DATA_DIR / "_ammattinimikkeet.json"
         polku.write_text(json.dumps(nimikkeet, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+# ── Tiedostot (kuvat ja liitteet) ──────────────────────────────────────────────
+#
+# Pilvessä: Supabase Storage -bucket "tyomaakuvat" (ks. storage_supabase.py).
+# Paikallisesti: data/kuvat/-kansio.
+# Polkukäytäntö: <työnumero>/<vaihe>/<aikaleima>_<juokseva>.jpg
+
+KUVA_DIR = DATA_DIR / "kuvat"
+
+
+def tiedosto_slug(osa: str) -> str:
+    """Siivoaa polun osan tiedostojärjestelmälle turvalliseksi."""
+    s = re.sub(r"[^A-Za-z0-9äöåÄÖÅ._-]", "_", str(osa).strip())
+    return re.sub(r"_+", "_", s).strip("._") or "x"
+
+
+def tallenna_tiedosto(polku: str, sisalto: bytes,
+                      mime: str = "application/octet-stream") -> bool:
+    if _pilvessa():
+        from storage_supabase import tallenna_tiedosto as _tt
+        return _tt(polku, sisalto, mime)
+    p = KUVA_DIR / polku
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_bytes(sisalto)
+    return True
+
+
+def lataa_tiedosto(polku: str):
+    """Palauttaa tiedoston sisällön (bytes) tai None jos ei löydy."""
+    if _pilvessa():
+        from storage_supabase import lataa_tiedosto as _lt
+        return _lt(polku)
+    p = KUVA_DIR / polku
+    return p.read_bytes() if p.exists() else None
+
+
+def listaa_tiedostot(etuliite: str) -> list:
+    """Listaa tiedostopolut annetun etuliitteen (kansion) alta."""
+    if _pilvessa():
+        from storage_supabase import listaa_tiedostot as _lf
+        return _lf(etuliite)
+    juuri = KUVA_DIR / etuliite
+    if not juuri.exists():
+        return []
+    return sorted(str(p.relative_to(KUVA_DIR)) for p in juuri.rglob("*") if p.is_file())
+
+
+def poista_tiedosto(polku: str) -> bool:
+    if _pilvessa():
+        from storage_supabase import poista_tiedosto as _pt
+        return _pt(polku)
+    p = KUVA_DIR / polku
+    if p.exists():
+        p.unlink()
+        return True
+    return False
+
+
+def pakkaa_kuva(sisalto: bytes, max_sivu: int = 1600, laatu: int = 80) -> bytes:
+    """Pakkaa kuvan puhelinkäyttöä varten JPEG-muotoon (pisin sivu max_sivu px)."""
+    try:
+        import io
+        from PIL import Image, ImageOps
+        img = Image.open(io.BytesIO(sisalto))
+        img = ImageOps.exif_transpose(img)
+        if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+        img.thumbnail((max_sivu, max_sivu))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=laatu)
+        return buf.getvalue()
+    except Exception:
+        return sisalto  # jos pakkaus epäonnistuu, tallenna alkuperäinen
 
 
 def lataa_projekti_yhteenveto(projekti_nimi: str) -> dict:

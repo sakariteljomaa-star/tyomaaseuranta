@@ -16,6 +16,7 @@ tallennus ja käyttäjähallinta:
 | 💰 **Kustannusseuranta** | `app.py` | Netvisor-viennit → kustannusseuranta-Excel | työnjohto, kirjanpito |
 | 👷 **Tuntikirja** | `ali_app.py` | Aliurakoitsijoiden tuntien kirjaus + hyväksyntä | työnjohto, työntekijät |
 | 🔧 **Kalustoseuranta** | `kalusto_app.py` | QR-pohjainen laitekirjanpito | kaikki työmaalla |
+| ☣️ **Asbestikohteet** | `asbesti_app.py` | Cateva-aliurakoiden dokumentointi ja raportit | työnjohto, työntekijät |
 
 Yritys: Uudenmaan Asbestipurku Oy / Uudenmaan Vahinkopalvelu Oy (Y-tunnus 2817254-1).
 Toiminta: asbestipurku, vahinkosaneeraus, rakentamisen aliurakointi.
@@ -28,6 +29,7 @@ Tmi ST Konsultti (Y-tunnus 3376518-1) = työnjohtopalvelut, oma toiminimi.
 python3 -m streamlit run app.py          --server.port 8501   # Kustannusseuranta
 python3 -m streamlit run ali_app.py      --server.port 8502   # Tuntikirja
 python3 -m streamlit run kalusto_app.py  --server.port 8503   # Kalustoseuranta
+python3 -m streamlit run asbesti_app.py  --server.port 8504   # Asbestikohteet (Cateva)
 ```
 
 Riippuvuudet: `pip install -r requirements.txt`
@@ -42,6 +44,9 @@ Riippuvuudet: `pip install -r requirements.txt`
 | `app.py`             | Kustannusseuranta-UI (10 välilehteä + Käyttäjät adminille)    |
 | `ali_app.py`         | Tuntikirja-UI (roolien mukaiset välilehdet, 2 kieltä)        |
 | `kalusto_app.py`     | Kalustoseuranta-UI + julkinen QR-skannausnäkymä              |
+| `asbesti_app.py`     | Asbestikohteet-UI: Cateva-kohteet, tilakone, dokumentointi   |
+| `asbesti_dokumentit.py`| Turvallisuussuunnitelma-, ennakkoilmoitus- ja raportti-PDF:t (reportlab + pypdf) |
+| `labroc_nouto.py`    | Labroc-tulosten IMAP-nouto ja PDF-tulkinta                   |
 | `auth.py`            | Käyttäjähallinta, roolit, PBKDF2-salasanat (YHTEINEN)        |
 | `parser.py`          | Netvisor ostolaskut (laskentakohderaportti) → DataFrame      |
 | `parser_myynti.py`   | Netvisor myyntireskontra → DataFrame (sarakehaku nimellä)    |
@@ -138,9 +143,17 @@ Supabase-taulut:
 projekti_data (projekti text, avain text, data jsonb, unique(projekti,avain))
 globaali_data (avain text primary key, data jsonb)
 ```
-Projektikohtainen data → `projekti_data` (ali_tunnit, tuntiseuranta, palkat, yhteenveto).
+Projektikohtainen data → `projekti_data` (ali_tunnit, tuntiseuranta, palkat, yhteenveto;
+asbesti: `cateva_<työnumero>` → asbesti_dok, asbesti_ilmoitukset).
 Globaali data → `globaali_data` (kayttajat, projektirekisteri, ammattinimikkeet,
-kalusto_laitteet, kalusto_tapahtumat).
+kalusto_laitteet, kalusto_tapahtumat, cateva_kohteet, asbesti_patevyydet,
+labroc_kasitellyt).
+
+**Tiedostot (kuvat, PDF:t):** Supabase Storage -bucket `tyomaakuvat` — luo kerran
+hallintapaneelissa: Storage → New bucket → nimi `tyomaakuvat` → **Private**.
+Secret-avain ohittaa Storage-RLS:n, policyjä ei tarvita. Paikallisesti tiedostot
+menevät `data/kuvat/`-kansioon. Polkukäytäntö: `<työnumero>/<vaihe>/<aikaleima>.jpg`.
+Cateva-dokumenttien kenttärakenteet: ks. `CATEVA_DOKUMENTTIPOHJAT.md`.
 
 **TÄRKEÄ — Supabase-avain:** käytä **secret-avainta** (`sb_secret_...` tai legacy
 `service_role`), EI publishable-avainta. Secret-avain ohittaa RLS:n ja toimii
@@ -176,6 +189,18 @@ key = "sb_secret_...secret-avain..."
 
 [kalusto]                                    # vain kalusto_app.py
 app_url = "https://<kaluston-osoite>.streamlit.app"
+
+[smtp]                                       # vain asbesti_app.py (raportin lähetys)
+host = "smtp.gmail.com"
+port = 465
+user = "info@uudenmaanasbestipurku.fi"
+password = "...(Gmailin sovellussalasana)..."
+cateva_vastaanottaja = "...@cateva.fi"
+
+[labroc_email]                               # vain asbesti_app.py (tulosten nouto)
+host = "imap.gmail.com"
+user = "...sama postilaatikko johon Labroc-tulokset tulevat..."
+password = "...(Gmailin sovellussalasana)..."
 ```
 5. Deploy. Sama secret-avain kaikkiin kolmeen.
 
