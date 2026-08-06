@@ -438,6 +438,86 @@ def luo_aloitus_lopetusraportti(tiedot: dict, kuvat: list, liite_pdfit: list = N
     return runko
 
 
+# ── 4. Tarjous ────────────────────────────────────────────────────────────────
+
+def luo_tarjous_pdf(tiedot: dict, rivit: list, valisumma: float,
+                    loppusumma: float, minimi_kaytossa: bool,
+                    asetukset: dict) -> bytes:
+    """
+    tiedot: kohde_nimi, tyonumero, osoite, pvm, tilaaja_yritys, saate,
+            kartoitus_viite, laatija
+    rivit:  [{"nimi","maara","yksikko","a_hinta","summa"}]
+    """
+    e = []
+    otsake = tiedot.get("kohde_nimi") or tiedot.get("osoite", "")
+    if tiedot.get("tyonumero"):
+        otsake += f"  ·  Työnumero {tiedot['tyonumero']}"
+    e.append(Paragraph(otsake, S_KOHDE))
+    e.append(Paragraph(tiedot.get("pvm", ""), S_PVM))
+
+    e.append(_kentat([("Tilaaja", tiedot.get("tilaaja_yritys", "Cateva Oy")),
+                      ("Kohde", tiedot.get("osoite", ""))]))
+
+    if tiedot.get("saate"):
+        e.extend(_rivit(tiedot["saate"], S_ARVO))
+
+    e.append(Paragraph("Erittely", S_OSIO))
+    taul = [[Paragraph("Työvaihe / kustannus", S_LABEL),
+             Paragraph("Määrä", S_LABEL), Paragraph("Yks.", S_LABEL),
+             Paragraph("à € (ALV 0 %)", S_LABEL), Paragraph("Yht. €", S_LABEL)]]
+    for r in rivit:
+        maara = f"{r['maara']:g}"
+        taul.append([Paragraph(r["nimi"], S_TEKSTI),
+                     Paragraph(maara, S_TEKSTI),
+                     Paragraph(r.get("yksikko", ""), S_TEKSTI),
+                     Paragraph(f"{r['a_hinta']:.2f}", S_TEKSTI),
+                     Paragraph(f"{r['summa']:.2f}", S_TEKSTI)])
+    taul.append([Paragraph("<b>Välisumma</b>", S_TEKSTI), "", "", "",
+                 Paragraph(f"<b>{valisumma:.2f}</b>", S_TEKSTI)])
+    if minimi_kaytossa:
+        taul.append([Paragraph("Minimiveloitus", S_TEKSTI), "", "", "",
+                     Paragraph(f"{loppusumma:.2f}", S_TEKSTI)])
+    taul.append([Paragraph("<b>YHTEENSÄ (ALV 0 %)</b>", S_LABEL), "", "", "",
+                 Paragraph(f"<b>{loppusumma:.2f} €</b>", S_LABEL)])
+    t = Table(taul, colWidths=[88 * mm, 20 * mm, 15 * mm, 26 * mm, 26 * mm])
+    t.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.6, colors.black),
+        ("LINEBELOW", (0, 1), (-1, -4), 0.3, colors.HexColor("#CCCCCC")),
+        ("LINEABOVE", (0, -1), (-1, -1), 0.6, colors.black),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ]))
+    e.append(t)
+
+    e.append(Paragraph("Ehdot", S_OSIO))
+    ehdot = [
+        "Hinnat ALV 0 % — rakentamispalvelun käännetty verovelvollisuus (AVL 8 c §).",
+        f"Tarjous on voimassa {asetukset.get('voimassaolo_vrk', 30)} vrk tarjouspäivästä.",
+        f"Maksuehto {asetukset.get('maksuehto', '14 pv netto')}.",
+        "Työ tehdään VNa 798/2015 mukaisesti; ennakkoilmoitus työsuojeluviranomaiselle "
+        "sisältyy hintaan. Puhtaus varmistetaan puhdastilamittauksella (raja 0,01 kuitua/cm³) "
+        "ja työstä toimitetaan aloitus- ja lopetusraportti kuvineen sekä jätteenkäsittelyasiakirja.",
+        "Mikäli purkutyön aikana paljastuu kartoituksessa mainitsemattomia asbestipitoisia "
+        "materiaaleja, niiden purku sovitaan ja veloitetaan lisätyönä "
+        "(työntekijä 55 €/h, työnjohto 75 €/h, ALV 0 %).",
+    ]
+    if tiedot.get("kartoitus_viite"):
+        ehdot.append(f"Tarjous perustuu Catevan kartoitusraporttiin {tiedot['kartoitus_viite']} "
+                     "ja toimitettuihin valokuviin purkualuerajauksineen.")
+    for rivi in ehdot:
+        e.append(Paragraph("•  " + rivi, S_TEKSTI))
+
+    e.append(Spacer(1, 12 * mm))
+    e.append(Table([[""]], colWidths=[70 * mm], style=TableStyle(
+        [("LINEBELOW", (0, 0), (0, 0), 0.8, colors.black)])))
+    e.append(Paragraph(f"{tiedot.get('laatija', '')}, {YRITYS['nimi']}", S_ARVO))
+
+    return _dokumentti(["TARJOUS", "ASBESTIPURKUTYÖ"],
+                       tiedot.get("osoite", ""), e)
+
+
 # ── PDF-yhdistys ja kuvan kääriminen PDF-sivuksi ──────────────────────────────
 
 def kuva_pdfksi(data: bytes) -> bytes:

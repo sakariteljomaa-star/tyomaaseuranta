@@ -162,7 +162,7 @@ def _loki(toiminto: str, kohde: str = ""):
         pass
 
 
-def _laheta_email(aihe: str, runko: str, liite_nimi: str, liite_data: bytes):
+def _laheta_email(aihe: str, runko: str, liite_nimi: str = None, liite_data: bytes = None):
     """Lähettää sähköpostin [smtp]-secretsien asetuksilla. Palauttaa (ok, viesti)."""
     import smtplib
     from email.message import EmailMessage
@@ -181,8 +181,9 @@ def _laheta_email(aihe: str, runko: str, liite_nimi: str, liite_data: bytes):
         msg["To"] = vastaanottaja
         msg["Subject"] = aihe
         msg.set_content(runko)
-        msg.add_attachment(liite_data, maintype="application", subtype="pdf",
-                           filename=liite_nimi)
+        if liite_data and liite_nimi:
+            msg.add_attachment(liite_data, maintype="application", subtype="pdf",
+                               filename=liite_nimi)
         if portti == 465:
             with smtplib.SMTP_SSL(host, portti, timeout=30) as s:
                 s.login(user, salasana)
@@ -410,13 +411,14 @@ if on_tyontekija:
 st.title("☣️ Asbestikohteet — Cateva-aliurakat")
 st.caption("Uudenmaan Asbestipurku Oy · työnumero on kaiken avain")
 
-valilehti_nimet = ["📋 Kohteet", "📄 Ilmoitukset", "📸 Dokumentointi",
+valilehti_nimet = ["📋 Kohteet", "💶 Tarjoukset", "📄 Ilmoitukset", "📸 Dokumentointi",
                    "📑 Raportti", "🧪 Labroc-tulokset", "🎓 Pätevyydet"]
 if on_admin:
     valilehti_nimet.append("👤 Käyttäjät")
 _vl = st.tabs(valilehti_nimet)
-tab_kohteet, tab_ilmoitukset, tab_dok, tab_raportti, tab_labroc, tab_patevyydet = _vl[:6]
-tab_kayttajat = _vl[6] if on_admin else None
+(tab_kohteet, tab_tarjoukset, tab_ilmoitukset, tab_dok, tab_raportti,
+ tab_labroc, tab_patevyydet) = _vl[:7]
+tab_kayttajat = _vl[7] if on_admin else None
 
 patevyydet = lataa_patevyydet()
 
@@ -559,6 +561,269 @@ with tab_kohteet:
                         st.session_state["am_poisto_varmistus"] = m_nro
                         st.warning(f"Paina uudelleen vahvistaaksesi kohteen {m_nro} poiston. "
                                    "Kuvat ja dokumentit säilyvät tallennustilassa.")
+
+
+# ── TARJOUKSET (laskenta) ─────────────────────────────────────────────────────
+
+TILAT_TARJOUS = {
+    "saapunut":      "📬 Saapunut",
+    "kuitattu":      "📨 Kuitattu vastaanotetuksi",
+    "lahetetty":     "📤 Tarjous lähetetty",
+    "tilattu":       "✅ Tilattu → kohde",
+    "ei_toteutunut": "🚫 Ei toteutunut",
+}
+
+with tab_tarjoukset:
+    if not on_tj:
+        st.info("Vain työnjohto käsittelee tarjouksia.")
+    else:
+        import tarjouslaskenta as TL
+
+        hinnasto_data = lataa_globaali("asbesti_hinnasto")
+        if hinnasto_data:
+            hinnasto = hinnasto_data[0].get("rivit", TL.OLETUSHINNASTO)
+            asetukset = hinnasto_data[0].get("asetukset", TL.OLETUSASETUKSET)
+        else:
+            hinnasto, asetukset = TL.OLETUSHINNASTO, TL.OLETUSASETUKSET
+        tarjoukset = lataa_globaali("cateva_tarjoukset")
+
+        # ── Uusi tarjouspyyntö ────────────────────────────────────────────────
+        with st.expander("📥 Uusi tarjouspyyntö", expanded=not tarjoukset):
+            tp_pdf = st.file_uploader("Catevan kartoitusraportti (PDF) — esitäyttää tiedot",
+                                      type=["pdf"], key="tp_pdf")
+            esi = {}
+            if tp_pdf:
+                esi = TL.parsi_cateva_kartoitus(tp_pdf.getvalue(), tp_pdf.name)
+            n1, n2 = st.columns(2)
+            tp_nro = n1.text_input("Työnumero *", value=esi.get("tyonumero", ""), key="tp_nro")
+            tp_osoite = n2.text_input("Osoite *", value=esi.get("osoite", "")
+                                      or esi.get("kohde", ""), key="tp_osoite")
+            if esi.get("materiaalit"):
+                st.caption("Kartoituksesta luettu: " + TL.kuvaus_kartoituksesta(esi))
+            if st.button("Luo tarjous", type="primary", key="tp_luo"):
+                nro = tp_nro.strip()
+                if not nro or not tp_osoite.strip():
+                    st.error("Työnumero ja osoite vaaditaan.")
+                elif any(t["tyonumero"] == nro for t in tarjoukset):
+                    st.error(f"Työnumerolle {nro} on jo tarjous.")
+                else:
+                    if tp_pdf:
+                        tallenna_tiedosto(f"{tiedosto_slug(nro)}/tarjous/kartoitus.pdf",
+                                          tp_pdf.getvalue(), "application/pdf")
+                    tarjoukset.append({
+                        "tyonumero": nro,
+                        "osoite": tp_osoite.strip(),
+                        "kohde_nimi": esi.get("kohde", ""),
+                        "saapunut": date.today().isoformat(),
+                        "kartoitus": esi,
+                        "kuvaus": TL.kuvaus_kartoituksesta(esi),
+                        "rivit": TL.oletustarjousrivit(hinnasto),
+                        "tila": "saapunut",
+                    })
+                    tallenna_globaali("cateva_tarjoukset", tarjoukset)
+                    _loki("Loi tarjouspyynnön", nro)
+                    st.rerun()
+
+        # ── Tarjouslista ja käsittely ────────────────────────────────────────
+        if tarjoukset:
+            st.dataframe(pd.DataFrame([{
+                "Työnumero": t["tyonumero"], "Osoite": t.get("osoite", ""),
+                "Saapunut": _pvm_fi(t.get("saapunut", "")),
+                "Tila": TILAT_TARJOUS.get(t.get("tila", "saapunut"), t.get("tila")),
+                "Summa €": t.get("loppusumma", ""),
+            } for t in sorted(tarjoukset, key=lambda x: x.get("saapunut", ""),
+                              reverse=True)]),
+                use_container_width=True, hide_index=True)
+
+            tj_valinta = st.selectbox(
+                "Käsiteltävä tarjous",
+                [f"{t['tyonumero']} — {t.get('osoite','')}" for t in tarjoukset],
+                key="tj_valinta").split(" — ")[0]
+            tarjous = next(t for t in tarjoukset if t["tyonumero"] == tj_valinta)
+            t_slug = tiedosto_slug(tarjous["tyonumero"])
+
+            st.markdown(f"**Tila:** {TILAT_TARJOUS.get(tarjous.get('tila'), '')}"
+                        + (f" &nbsp;·&nbsp; {tarjous.get('kuvaus','')}"
+                           if tarjous.get("kuvaus") else ""))
+
+            # Kuittausviesti
+            if tarjous.get("tila") == "saapunut":
+                if st.button("📨 Kuittaa vastaanotetuksi (sähköposti tilaajalle)",
+                             key="tj_kuittaa"):
+                    ok, viesti = _laheta_email(
+                        f"Tarjouspyyntö vastaanotettu — työnumero {tarjous['tyonumero']}",
+                        f"Hei,\n\nolemme vastaanottaneet tarjouspyynnön.\n"
+                        f"Työnumero: {tarjous['tyonumero']}\nKohde: {tarjous.get('osoite','')}\n\n"
+                        f"Toimitamme tarjouksen lähipäivinä.\n\n"
+                        f"Terveisin\n{kayttaja.get('nimi','')}\n{DOK.YRITYS['nimi']}")
+                    if ok:
+                        tarjous["tila"] = "kuitattu"
+                        tallenna_globaali("cateva_tarjoukset", tarjoukset)
+                        _loki("Kuittasi tarjouspyynnön", tarjous["tyonumero"])
+                        st.success(f"Kuittaus lähetetty. {viesti}")
+                        st.rerun()
+                    else:
+                        st.error(viesti)
+
+            # ── Laskenta: vakiopaketti + tapauskohtaiset rivit ───────────────
+            st.markdown("#### Laskenta (ALV 0 %, käännetty verovelvollisuus)")
+            st.caption("Pohjana vakiopaketti. Lisää tapauskohtaiset purkurivit "
+                       "(esim. lattiaeristeen poisto m²) omina riveinään tai tunteina. "
+                       "Rivin voi poistaa valitsemalla rivin ja roskakorilla.")
+            df_rivit = pd.DataFrame(tarjous.get("rivit", []))
+            if df_rivit.empty:
+                df_rivit = pd.DataFrame(TL.oletustarjousrivit(hinnasto))
+            muokatut = st.data_editor(
+                df_rivit[["nimi", "maara", "yksikko", "a_hinta"]],
+                num_rows="dynamic", use_container_width=True, key=f"tj_rivit_{tj_valinta}",
+                column_config={
+                    "nimi": st.column_config.TextColumn("Työvaihe / kustannus", width="large"),
+                    "maara": st.column_config.NumberColumn("Määrä", min_value=0.0, step=0.5),
+                    "yksikko": st.column_config.TextColumn("Yks.", width="small"),
+                    "a_hinta": st.column_config.NumberColumn("à € (ALV 0)", min_value=0.0,
+                                                             format="%.2f"),
+                })
+            lisays = st.selectbox("➕ Lisää rivi hinnastosta",
+                                  ["—"] + [f"{r['nimi']} ({r['hinta']:g} €/{r['yksikko']})"
+                                           for r in hinnasto], key="tj_lisays")
+
+            rivit, valisumma, loppusumma, minimi = TL.laske_summat(
+                muokatut.to_dict("records"), float(asetukset.get("minimiveloitus", 1000)))
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Välisumma", f"{valisumma:,.2f} €")
+            m2.metric("Minimiveloitus", f"{float(asetukset.get('minimiveloitus',1000)):,.0f} €")
+            m3.metric("TARJOUS YHTEENSÄ", f"{loppusumma:,.2f} €",
+                      delta="minimi käytössä" if minimi else None)
+
+            b1, b2 = st.columns(2)
+            if b1.button("💾 Tallenna laskenta", key="tj_tallenna"):
+                if lisays != "—":
+                    idx = [f"{r['nimi']} ({r['hinta']:g} €/{r['yksikko']})"
+                           for r in hinnasto].index(lisays)
+                    hr = hinnasto[idx]
+                    rivit.append({"nimi": hr["nimi"], "yksikko": hr["yksikko"],
+                                  "maara": 1.0, "a_hinta": float(hr["hinta"]),
+                                  "summa": float(hr["hinta"])})
+                tarjous["rivit"] = rivit
+                tarjous["valisumma"], tarjous["loppusumma"] = valisumma, loppusumma
+                tallenna_globaali("cateva_tarjoukset", tarjoukset)
+                st.success("Tallennettu.")
+                st.rerun()
+
+            if b2.button("📄 Luo tarjous-PDF", type="primary", key="tj_pdf"):
+                tiedot = {
+                    "kohde_nimi": tarjous.get("kohde_nimi", ""),
+                    "tyonumero": tarjous["tyonumero"],
+                    "osoite": tarjous.get("osoite", ""),
+                    "pvm": date.today().strftime("%-d.%-m.%Y"),
+                    "tilaaja_yritys": "Cateva Oy",
+                    "saate": ("Kiitämme tarjouspyynnöstä. Tarjoamme asbestipurkutyön "
+                              "alla olevan erittelyn mukaisesti."),
+                    "kartoitus_viite": tarjous.get("tyonumero", ""),
+                    "laatija": kayttaja.get("nimi", ""),
+                }
+                pdf = DOK.luo_tarjous_pdf(tiedot, rivit, valisumma, loppusumma,
+                                          minimi, asetukset)
+                tallenna_tiedosto(f"{t_slug}/tarjous/tarjous.pdf", pdf, "application/pdf")
+                tarjous["rivit"], tarjous["valisumma"], tarjous["loppusumma"] = \
+                    rivit, valisumma, loppusumma
+                tallenna_globaali("cateva_tarjoukset", tarjoukset)
+                st.session_state[f"pdf_tarjous_{tj_valinta}"] = pdf
+                _loki("Loi tarjouksen", tarjous["tyonumero"])
+
+            pdf_tarjous = st.session_state.get(f"pdf_tarjous_{tj_valinta}")
+            if pdf_tarjous:
+                st.download_button("⬇️ Esikatsele / lataa tarjous", data=pdf_tarjous,
+                                   file_name=f"tarjous_asbestipurku_{t_slug}.pdf",
+                                   mime="application/pdf", use_container_width=True)
+                tj_varmistus = st.checkbox("Olen esikatsellut tarjouksen", key="tj_varmistus")
+                if st.button("📧 Lähetä tarjous", type="primary",
+                             disabled=not tj_varmistus, key="tj_laheta"):
+                    ok, viesti = _laheta_email(
+                        f"Tarjous: asbestipurkutyö {tarjous['tyonumero']} — {tarjous.get('osoite','')}",
+                        f"Hei,\n\nliitteenä tarjouksemme asbestipurkutyöstä.\n"
+                        f"Työnumero: {tarjous['tyonumero']}\nKohde: {tarjous.get('osoite','')}\n\n"
+                        f"Terveisin\n{kayttaja.get('nimi','')}\n{DOK.YRITYS['nimi']}",
+                        f"tarjous_asbestipurku_{t_slug}.pdf", pdf_tarjous)
+                    if ok:
+                        tarjous["tila"] = "lahetetty"
+                        tarjous["lahetetty"] = date.today().isoformat()
+                        tallenna_globaali("cateva_tarjoukset", tarjoukset)
+                        _loki("Lähetti tarjouksen", tarjous["tyonumero"])
+                        st.success(f"✅ Tarjous lähetetty. {viesti}")
+                        st.rerun()
+                    else:
+                        st.error(viesti)
+
+            # ── Tilaus → kohde ───────────────────────────────────────────────
+            if tarjous.get("tila") in ("lahetetty", "kuitattu", "saapunut"):
+                st.divider()
+                c1, c2 = st.columns(2)
+                if c1.button("✅ Merkitse tilatuksi → luo kohde", key="tj_tilattu"):
+                    if not any(k["tyonumero"] == tarjous["tyonumero"] for k in kohteet):
+                        kohteet.append({
+                            "tyonumero": tarjous["tyonumero"],
+                            "osoite": tarjous.get("osoite", ""),
+                            "kunta": "",
+                            "kohde_nimi": tarjous.get("kohde_nimi") or tarjous.get("osoite", ""),
+                            "vastuuhenkilo": kayttaja.get("nimi", ""),
+                            "aloitus_pvm": "", "lopetus_pvm": "",
+                            "tyontekijat": [],
+                            "kuvaus": tarjous.get("kuvaus", ""),
+                            "tarjottu_hinta": tarjous.get("loppusumma", ""),
+                            **CATEVA_OLETUS,
+                            "tilaaja_puhelin": "", "tilaaja_email": "",
+                            "tila": "uusi",
+                            "luotu": date.today().isoformat(),
+                        })
+                        tallenna_kohteet(kohteet)
+                    tarjous["tila"] = "tilattu"
+                    tallenna_globaali("cateva_tarjoukset", tarjoukset)
+                    _loki("Merkitsi tarjouksen tilatuksi", tarjous["tyonumero"])
+                    st.success(f"Kohde {tarjous['tyonumero']} luotu — jatka Ilmoitukset-välilehdellä "
+                               "(muista aloituspäivä ja työntekijät Kohteet-välilehdellä).")
+                    st.rerun()
+                if c2.button("🚫 Ei toteutunut", key="tj_ei"):
+                    tarjous["tila"] = "ei_toteutunut"
+                    tallenna_globaali("cateva_tarjoukset", tarjoukset)
+                    st.rerun()
+
+        # ── Hinnasto (admin) ─────────────────────────────────────────────────
+        if on_admin:
+            with st.expander("⚙️ Hinnasto ja tarjousasetukset"):
+                st.caption("Hinnaston muutokset vaikuttavat uusiin tarjouksiin. "
+                           "Hinnat ALV 0 %.")
+                h_df = st.data_editor(pd.DataFrame(hinnasto)[["nimi", "yksikko", "hinta"]],
+                                      num_rows="dynamic", use_container_width=True,
+                                      key="h_editor")
+                a1, a2, a3 = st.columns(3)
+                a_min = a1.number_input("Minimiveloitus €",
+                                        value=float(asetukset.get("minimiveloitus", 1000)),
+                                        step=50.0, key="a_min")
+                a_voim = a2.number_input("Tarjous voimassa (vrk)",
+                                         value=int(asetukset.get("voimassaolo_vrk", 30)),
+                                         step=5, key="a_voim")
+                a_maksu = a3.text_input("Maksuehto",
+                                        value=asetukset.get("maksuehto", "14 pv netto"),
+                                        key="a_maksu")
+                if st.button("💾 Tallenna hinnasto", key="h_tallenna"):
+                    uudet = []
+                    for i, r in enumerate(h_df.to_dict("records")):
+                        if not str(r.get("nimi", "")).strip():
+                            continue
+                        koodi = hinnasto[i]["koodi"] if i < len(hinnasto) else f"oma_{i}"
+                        uudet.append({"koodi": koodi, "nimi": r["nimi"],
+                                      "yksikko": r.get("yksikko", "erä"),
+                                      "hinta": float(r.get("hinta") or 0)})
+                    tallenna_globaali("asbesti_hinnasto", [{
+                        "rivit": uudet,
+                        "asetukset": {"minimiveloitus": a_min,
+                                      "voimassaolo_vrk": int(a_voim),
+                                      "maksuehto": a_maksu},
+                    }])
+                    _loki("Päivitti hinnaston")
+                    st.success("Hinnasto tallennettu.")
+                    st.rerun()
 
 
 # ── ILMOITUKSET (prompti 3) ───────────────────────────────────────────────────

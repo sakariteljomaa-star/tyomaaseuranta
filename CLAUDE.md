@@ -45,7 +45,8 @@ Riippuvuudet: `pip install -r requirements.txt`
 | `ali_app.py`         | Tuntikirja-UI (roolien mukaiset välilehdet, 2 kieltä)        |
 | `kalusto_app.py`     | Kalustoseuranta-UI + julkinen QR-skannausnäkymä              |
 | `asbesti_app.py`     | Asbestikohteet-UI: Cateva-kohteet, tilakone, dokumentointi   |
-| `asbesti_dokumentit.py`| Turvallisuussuunnitelma-, ennakkoilmoitus- ja raportti-PDF:t (reportlab + pypdf) |
+| `asbesti_dokumentit.py`| Turvallisuussuunnitelma-, ennakkoilmoitus-, raportti- ja tarjous-PDF:t (reportlab + pypdf) |
+| `tarjouslaskenta.py` | Cateva-tarjoukset: hinnasto, vakiopaketti, kartoitus-PDF:n tulkinta |
 | `labroc_nouto.py`    | Labroc-tulosten IMAP-nouto ja PDF-tulkinta                   |
 | `auth.py`            | Käyttäjähallinta, roolit, PBKDF2-salasanat (YHTEINEN)        |
 | `parser.py`          | Netvisor ostolaskut (laskentakohderaportti) → DataFrame      |
@@ -98,6 +99,13 @@ Luokittelu tehdään ensisijaisesti **toimittajan nimen + ALV-tunnuksen** perust
 - Palkkakerroin (brutto × kerroin): oletus **1,5** (toteuttava porras 1,6–1,7,
   toimihenkilöt 1,3–1,4)
 - Aliurakoitsijalaskut: ALV 0 %, **ei** sivukulukerrointa.
+- **Cateva-tarjoushinnoittelu** (tarjouslaskenta.py, muokattavissa appin hinnastossa):
+  vastaanotto+ennakkoilmoitus 250 € · osastointi ja suojaukset (sis. alipaineistus-
+  laitteet) 350 € · purkutyö 55 €/h (min. 4 h) · loppumittaus+dokumentointi 175 € ·
+  jäte min. 90 € · pk-kulut 25 € · matkat 1 €/km · **minimiveloitus 1 000 €** ·
+  lisätyöt 55/75 €/h · tarjous voimassa 30 vrk, maksuehto 14 pv netto, ALV 0 %
+  käänteinen. Purkutyön yksikköhinnat (€/m² ym.) tapauskohtaisesti — lisätään
+  hinnastoon kun vakiintuvat.
 
 ## 6. Kustannusseuranta-Excelin rakenne
 
