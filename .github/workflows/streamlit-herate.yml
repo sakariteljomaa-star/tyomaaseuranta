@@ -1,0 +1,31 @@
+name: Streamlit-herate
+# Pitaa Streamlit Community Cloud -appit hereilla. Ilmaistason appi nukahtaa
+# ~7 vrk kayttamattomyydesta; ajastettu ping laskee liikenteeksi ja nollaa
+# ajastimen, joten appi ei ehdi nukahtaa. Ei koske appin koodia, vain kutsuu URLia.
+#
+# Lisaa appi: laita sen julkaistu osoite alla olevaan APPIT-listaan.
+# HUOM: yksityinen appi (nakyy "You do not have access") ei herea pingilla,
+# koska pyynto ei tavoita itse appia - se toimii vain julkisilla appeilla.
+#
+# HUOM: GitHub poistaa ajastuksen kaytosta, jos repossa ei ole aktiivisuutta 60 pv
+# - talloin Actions-valilehti nayttaa varoituksen ja ajastuksen voi kaynnistaa napista.
+on:
+  schedule:
+    - cron: '12 6 * * 1,4'   # ma ja to klo 06:12 UTC (~09:12 Suomen aikaa)
+  workflow_dispatch:         # kasikaynnistys testausta varten
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pingaa appit
+        run: |
+          APPIT=(
+            "https://uap-asbesti.streamlit.app"
+            "https://kalusto-uap.streamlit.app"
+          )
+          for url in "${APPIT[@]}"; do
+            code=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" \
+              -A "Mozilla/5.0 (keepalive; GitHub Actions)" "$url" || echo "virhe")
+            echo "$url -> HTTP $code"
+          done
