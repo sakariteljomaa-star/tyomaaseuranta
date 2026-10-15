@@ -230,7 +230,7 @@ ali_rivit: list = lataa_ali_tunnit(projekti)
 
 # ── VÄLILEHDET — roolien mukaan ────────────────────────────────────────────────
 tab_pikasyotto = tab_yksittainen = tab_vkoyht = None
-tab_tekijat = tab_projektit = tab_historia = tab_kayttajat = None
+tab_tekijat = tab_projektit = tab_historia = tab_kayttajat = tab_viranomainen = None
 
 # Rakenna välilehtien nimet dynaamisesti roolin mukaan
 valilehti_nimet = []
@@ -238,7 +238,7 @@ if voi_muokata:
     valilehti_nimet += [tr("tab_pikasyotto", kieli), tr("tab_yksittainen", kieli)]
 valilehti_nimet += [tr("tab_vkoyht", kieli)]
 if on_tj:
-    valilehti_nimet += [tr("tab_tekijat", kieli), "📁 Projektit", "📈 Historia"]
+    valilehti_nimet += [tr("tab_tekijat", kieli), "📁 Projektit", "📈 Historia", "🏛️ Viranomaisilmoitukset"]
 if on_admin:
     valilehti_nimet += ["👤 Käyttäjät"]
 
@@ -252,6 +252,7 @@ if on_tj:
     tab_tekijat = valilehdet[_idx]; _idx += 1
     tab_projektit = valilehdet[_idx]; _idx += 1
     tab_historia = valilehdet[_idx]; _idx += 1
+    tab_viranomainen = valilehdet[_idx]; _idx += 1
 if on_admin:
     tab_kayttajat = valilehdet[_idx]; _idx += 1
 
@@ -759,11 +760,28 @@ with tab_tekijat:
         elif t_lp == LASK_TAVAT[2]:
             t_kh = t2.number_input(tr("kiintea_hinta", kieli), 0.0, step=10.0, key="t_kh")
 
+        # ── Viranomaistiedot (Verohallinnon työntekijäilmoitus) ────────────────
+        st.markdown("**🏛️ Viranomaistiedot** (pakolliset Verohallinnon ilmoitukseen)")
+        v1, v2, v3 = st.columns(3)
+        t_veronro = v1.text_input("Veronumero (12 num.)", max_chars=12, key="t_veronro")
+        t_syntyma = v1.text_input("Syntymäaika (pp.kk.vvvv)", placeholder="01.01.1990", key="t_syntyma")
+        t_ytunnus = v2.text_input("Työnantajan Y-tunnus", placeholder="1234567-8", key="t_ytunnus")
+        t_tyosuhde = v2.selectbox("Työsuhteen laji",
+            ["Työsuhteinen", "Vuokratyöntekijä", "Itsenäinen ammatinharjoittaja", "Harjoittelija"],
+            key="t_tyosuhde")
+        t_kansalaisuus = v3.text_input("Kansalaisuus", value="Suomi", key="t_kansalaisuus")
+        t_laheva = v3.text_input("Lähettävä yritys (jos ulkom.)", key="t_laheva")
+        v4, v5 = st.columns(2)
+        t_osoite = v4.text_input("Osoite (vapaaehtoinen)", key="t_osoite")
+        t_puhelin = v5.text_input("Puhelin (vapaaehtoinen)", key="t_puhelin")
+
         if st.button(tr("lisaa", kieli), type="primary", key="t_lisaa"):
             if not t_nimi:
                 st.error(tr("syota_nimi", kieli))
             elif any(tk["nimi"] == t_nimi for tk in tyontekijat_lista):
                 st.warning(f"{t_nimi} {tr('jo_listalla', kieli)}")
+            elif t_veronro and (not t_veronro.isdigit() or len(t_veronro) != 12):
+                st.error("Veronumero on 12 numeroa.")
             else:
                 lm = {LASK_TAVAT[0]:"tunnit", LASK_TAVAT[1]:"tuntihinta", LASK_TAVAT[2]:"kiintea"}
                 tyontekijat_lista.append({
@@ -773,9 +791,19 @@ with tab_tekijat:
                     "laskutustapa":  lm.get(t_lp, "tunnit"),
                     "tuntihinta":    t_th,
                     "kiintea_hinta": t_kh,
+                    # Viranomaistiedot (Verohallinto)
+                    "veronumero":    t_veronro,
+                    "syntymaaika":   t_syntyma,
+                    "y_tunnus":      t_ytunnus,
+                    "tyosuhde":      t_tyosuhde,
+                    "kansalaisuus":  t_kansalaisuus,
+                    "laheva_yritys": t_laheva,
+                    "osoite":        t_osoite,
+                    "puhelin":       t_puhelin,
                 })
                 _tallenna_tyontekijat(tyontekijat_lista)
-                st.success(f"✅ {t_nimi} ({t_nimike})")
+                puuttuu = [] if (t_veronro and t_syntyma and t_ytunnus) else ["⚠️ viranomaistietoja puuttuu"]
+                st.success(f"✅ {t_nimi} ({t_nimike}) {' '.join(puuttuu)}")
                 st.rerun()
 
     # Poista listalta
@@ -837,6 +865,22 @@ if tab_projektit is not None:
                     "Oletustuntihinta (€/h)", value=38.0, step=0.5, key="np_th",
                     help="Käytetään jos tekijälle ei ole asetettu ammattinimikettä")
 
+                # ── Työmaan viralliset tiedot (Verohallinto / päätoteuttaja) ──
+                st.markdown("**🏛️ Työmaan viralliset tiedot** (Verohallinnon ilmoitukset)")
+                w1, w2 = st.columns(2)
+                uusi_tyomaa_avain = w1.text_input("Työmaa-avain / työmaanumero",
+                    key="np_tyomaa_avain", help="Verohallinnon työmaan tunniste")
+                uusi_tyomaa_osoite = w1.text_input("Työmaan osoite",
+                    placeholder="esim. Tenholantie 15, 00280 Helsinki", key="np_tyomaa_osoite")
+                uusi_aloitus = w1.text_input("Aloituspäivä (pp.kk.vvvv)",
+                    placeholder="01.10.2026", key="np_aloitus")
+                uusi_paatoteuttaja = w2.text_input("Päätoteuttaja",
+                    value="Uudenmaan Asbestipurku Oy", key="np_paatoteuttaja")
+                uusi_paatot_ytunnus = w2.text_input("Päätoteuttajan Y-tunnus",
+                    value="2817254-1", key="np_paatot_yt")
+                uusi_rakennuttaja = w2.text_input("Rakennuttaja / tilaaja (Y-tunnus)",
+                    placeholder="Yritys Oy / 1234567-8", key="np_rakennuttaja")
+
                 if st.button("Luo projekti", type="primary", key="np_luo"):
                     if not uusi_nimi:
                         st.error("Syötä projektin nimi.")
@@ -854,6 +898,13 @@ if tab_projektit is not None:
                             "tuntihinta_oletus": uusi_th_oletus,
                             "luotu":             date.today().isoformat(),
                             "tila":              "aktiivinen",
+                            # Työmaan viralliset tiedot (Verohallinto)
+                            "tyomaa_avain":      uusi_tyomaa_avain,
+                            "tyomaa_osoite":     uusi_tyomaa_osoite,
+                            "aloituspaiva":      uusi_aloitus,
+                            "paatoteuttaja":     uusi_paatoteuttaja,
+                            "paatot_ytunnus":    uusi_paatot_ytunnus,
+                            "rakennuttaja":      uusi_rakennuttaja,
                         })
                         tallenna_projektirekisteri(rekisteri)
                         st.success(f"✅ Projekti **{uusi_nimi}** luotu!  \n"
@@ -1026,3 +1077,53 @@ if tab_kayttajat is not None:
         st.divider()
         if hasattr(A, "nayta_loki"):
             A.nayta_loki()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# VIRANOMAISILMOITUKSET — Verohallinnon työntekijäilmoitus (TJ/admin)
+# ══════════════════════════════════════════════════════════════════════════════
+if tab_viranomainen is not None:
+    with tab_viranomainen:
+        import verohallinto as VH
+        st.subheader("🏛️ Verohallinnon työntekijäilmoitus")
+        st.caption("Päätoteuttajan kuukausittainen ilmoitus työmaalla työskennelleistä "
+                   "(myös aliurakoitsijat). Tiedot kootaan tuntikirjauksista + tekijöiden "
+                   "viranomaistiedoista.")
+
+        _proj = next((p for p in lataa_projektirekisteri() if p["nimi"] == projekti), {})
+        if not _proj.get("tyomaa_avain"):
+            st.warning("⚠️ Työmaan viralliset tiedot puuttuvat. Täydennä ne "
+                       "Projektit-välilehdellä (työmaa-avain, osoite, päätoteuttaja).")
+
+        vi1, vi2 = st.columns(2)
+        vi_vuosi = vi1.number_input("Vuosi", value=date.today().year, step=1, key="vi_vuosi")
+        vi_kk = vi2.number_input("Kuukausi", min_value=1, max_value=12,
+                                 value=date.today().month, step=1, key="vi_kk")
+
+        df_vi = VH.kokoa_tyontekijailmoitus(ali_rivit, tyontekijat_lista, _proj,
+                                            int(vi_vuosi), int(vi_kk))
+        if df_vi.empty:
+            st.info(f"Ei työntekijöitä työmaalla kaudella {int(vi_kk):02d}/{int(vi_vuosi)}.")
+        else:
+            puuttuvia = int(df_vi["_puuttuu"].sum())
+            st.dataframe(df_vi.drop(columns=["_puuttuu"]), use_container_width=True, hide_index=True)
+            if puuttuvia:
+                st.error(f"⚠️ {puuttuvia} tekijältä puuttuu viranomaistietoja "
+                         "(veronumero/synt.aika/Y-tunnus). Täydennä Tekijälistalla ennen lähetystä.")
+            else:
+                st.success(f"✅ {len(df_vi)} työntekijää — kaikki tiedot kunnossa.")
+
+            c1, c2 = st.columns(2)
+            xlsx = VH.tyontekijailmoitus_excel(df_vi, _proj, int(vi_vuosi), int(vi_kk))
+            c1.download_button("⬇️ Lataa Excel-ilmoitus", data=xlsx,
+                file_name=f"tyontekijailmoitus_{int(vi_vuosi)}_{int(vi_kk):02d}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True)
+            csv = VH.tyontekijailmoitus_csv(df_vi)
+            c2.download_button("⬇️ Lataa CSV", data=csv,
+                file_name=f"tyontekijailmoitus_{int(vi_vuosi)}_{int(vi_kk):02d}.csv",
+                mime="text/csv", use_container_width=True)
+
+        st.divider()
+        st.caption("ℹ️ Ilmoitus annetaan Verohallinnolle kuukausittain (OmaVero tai "
+                   "Ilmoitin.fi). Tämä lista sisältää vaaditut kentät. Urakkailmoitus "
+                   "(maksetut summat aliurakoitsijoille) hoidetaan kustannusseurannasta — tulossa.")

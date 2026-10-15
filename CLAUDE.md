@@ -42,7 +42,8 @@ Riippuvuudet: `pip install -r requirements.txt`
 | Tiedosto             | Tehtävä                                                       |
 |----------------------|--------------------------------------------------------------|
 | `app.py`             | Kustannusseuranta-UI (10 välilehteä + Käyttäjät adminille)    |
-| `ali_app.py`         | Tuntikirja-UI (roolien mukaiset välilehdet, 2 kieltä)        |
+| `ali_app.py`         | Tuntikirja-UI (roolien mukaiset välilehdet, 2 kieltä) + Viranomaisilmoitukset |
+| `verohallinto.py`    | Päätoteuttajan työntekijäilmoitus (Verohallinto): kokoaa kuukauden työmaalla olleet tuntikirjauksista + tekijöiden viranomaistiedot → Excel/CSV |
 | `kalusto_app.py`     | Kalustoseuranta-UI + julkinen QR-skannausnäkymä              |
 | `asbesti_app.py`     | Asbestikohteet-UI: Cateva-kohteet, tilakone, dokumentointi   |
 | `asbesti_dokumentit.py`| Turvallisuussuunnitelma-, ennakkoilmoitus-, raportti- ja tarjous-PDF:t (reportlab + pypdf) |
