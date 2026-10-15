@@ -109,7 +109,9 @@ Loki auttaa väärinkäytösten selvittämisessä ja vastuun osoittamisessa.
 
 - Järjestelmä sisältää henkilötietoja (nimet, työtunnit). Ks. `TIETOSUOJASELOSTE.md`.
 - Käsittelyperuste: sopimuksen täytäntöönpano (aliurakkasuhteet, työtunnit).
-- Säilytysaika: tiedot poistetaan 6 kk projektin päättymisen jälkeen.
+- Säilytysajat tietoryhmittäin (verodata 6 v) — ks. TIETOSUOJASELOSTE.md kohta 9.
+- Terveystarkastustiedot (asbesti) ovat erityisiä henkilötietoja — vain työnjohdon käsittelyyn.
+- Toimenpidelista ja riskit: GDPR_ARVIOINTI.md.
 - Data EU:ssa, ei luovuteta kolmansille (tilaajalle vain tuntiraportit, ei yksilöityjä tietoja).
 
 ---

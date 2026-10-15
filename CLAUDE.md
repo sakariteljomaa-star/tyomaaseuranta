@@ -219,4 +219,5 @@ password = "...(Gmailin sovellussalasana)..."
   ei ä/ö (esim. `valteri-koulu_tenholantie_15.json`).
 - Kieli: suomi + venäjä (käyttöliittymä). Raportit suomeksi.
 - Jokainen Netvisor-tuonti on itsenäinen: kukin osio lataa oman aineistonsa.
-- Tietosuoja: ks. `TIETOSUOJASELOSTE.md`. Säilytysaika 6 kk projektin päätyttyä.
+- Tietosuoja: ks. `TIETOSUOJASELOSTE.md` ja `GDPR_ARVIOINTI.md`. Säilytysajat tietoryhmittäin
+  (verodata 6 v, terveystarkastustiedot vain työnjohdolle). Järjestelmä on henkilörekisteri.

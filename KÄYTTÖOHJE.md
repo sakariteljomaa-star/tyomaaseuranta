@@ -118,7 +118,7 @@ organisation_id = "2817254-1"
 - 🔒 Kaikki data tallentuu pilveen (Supabase, EU) ja säilyy automaattisesti.
 - 👤 Sama tunnus kaikkiin kolmeen sovellukseen.
 - 📱 Toimii puhelimella, tabletilla ja tietokoneella.
-- 🗑️ Tietosuoja: tiedot poistetaan 6 kk projektin päättymisen jälkeen (ks. TIETOSUOJASELOSTE.md).
+- 🗑️ Tietosuoja: Verohallinnon ilmoitustiedot säilytetään lain mukaan 6 vuotta, muut tiedot lyhyemmän ajan (ks. TIETOSUOJASELOSTE.md).
 
 ---
 
