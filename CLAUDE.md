@@ -186,6 +186,10 @@ kirjoitukset (virhe 42501). Avain VAIN Streamlit Secretsiin, ei koskaan GitHubii
   ristiriitoja. Siksi käytämme suoria REST-kutsuja (`requests`).
 - **QR-koodien app_url:** kalustoseurannan secrets `[kalusto] app_url` pitää olla
   oikea julkaistu osoite ENNEN tarrojen tulostusta, muuten QR osoittaa localhostiin.
+- **`width="stretch"`, EI `use_container_width`:** `use_container_width` poistuu
+  Streamlitista (vanhentunut, poisto 2025-12-31 jälkeen) ja Cloud asentaa aina uusimman →
+  appit kaatuisivat. Käytä `width="stretch"` (= vanha `True`) tai `width="content"`
+  (= vanha `False`). Vaatii `streamlit>=1.49.0` (dataframe/data_editor/image).
 
 ## 11. Julkaisu Streamlit Cloudiin
 

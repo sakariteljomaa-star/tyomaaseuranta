@@ -134,11 +134,11 @@ _nimike_hinnat      = {n["nimike"]: n["tuntihinta"] for n in ammattinimikkeet}
 with st.sidebar:
     # Kielinappi
     k1, k2 = st.columns(2)
-    if k1.button("🇫🇮 Suomi", use_container_width=True,
+    if k1.button("🇫🇮 Suomi", width="stretch",
                  type="primary" if st.session_state.get("kieli","fi")=="fi" else "secondary"):
         st.session_state["kieli"] = "fi"
         st.rerun()
-    if k2.button("🇷🇺 Русский", use_container_width=True,
+    if k2.button("🇷🇺 Русский", width="stretch",
                  type="primary" if st.session_state.get("kieli","fi")=="ru" else "secondary"):
         st.session_state["kieli"] = "ru"
         st.rerun()
@@ -172,7 +172,7 @@ with st.sidebar:
         st.warning("Ei sinulle määriteltyjä projekteja. Ota yhteys työnjohtajaan.")
     st.session_state["projekti_nimi"] = projekti
 
-    if st.button("🔓 Kirjaudu ulos", use_container_width=True):
+    if st.button("🔓 Kirjaudu ulos", width="stretch"):
         A.kirjaudu_ulos()
         st.session_state.pop("projekti_nimi", None)
         st.rerun()
@@ -358,7 +358,7 @@ if tab_pikasyotto is not None:
         if lukittu_lkm and not on_tj:
             st.caption(f"🔒 {lukittu_lkm} tekijän tunnit lukittu — vain työnjohtaja voi muuttaa")
 
-        if st.button(tr("tallenna_kaikki", kieli), type="primary", use_container_width=True):
+        if st.button(tr("tallenna_kaikki", kieli), type="primary", width="stretch"):
             for tk in tyontekijat_lista:
                 nimi   = tk["nimi"]
                 # Älä ylikirjoita lukittuja kirjauksia
@@ -502,7 +502,7 @@ if tab_yksittainen is not None:
         if lp == "tuntihinta" and t_info.get("tuntihinta"):
             c2.metric("Summa", f"{yht_h * t_info['tuntihinta']:,.0f} €")
 
-        if st.button(tr("tallenna", kieli), type="primary", use_container_width=True,
+        if st.button(tr("tallenna", kieli), type="primary", width="stretch",
                      key="yk_tall", disabled=yk_lukittu):
             uusi = {
                 "id":       f"{viikko}_{vuosi}_{valittu_nimi}".replace(" ","_"),
@@ -564,7 +564,7 @@ with tab_vkoyht:
             tbl.append(rivi)
 
         df_yht = pd.DataFrame(tbl)
-        st.dataframe(df_yht, use_container_width=True, hide_index=True)
+        st.dataframe(df_yht, width="stretch", hide_index=True)
 
         # Päiväkohtaiset huomiot yhteenvedossa
         huomiot_olemassa = any(
@@ -613,7 +613,7 @@ with tab_vkoyht:
             btn_id = rv["id"].replace("-","_")
             b1, b2, b3, b4 = st.columns([2, 2, 2, 4])
 
-            if b1.button(tr("hyvaksy", kieli), key=f"hyv_{btn_id}", use_container_width=True):
+            if b1.button(tr("hyvaksy", kieli), key=f"hyv_{btn_id}", width="stretch"):
                 rv["hyvaksynta_tila"]   = "hyvaksytty"
                 rv["hyvaksynta_pvm"]    = date.today().strftime("%d.%m.%Y")
                 rv["hyvaksynta_klo"]    = __import__("datetime").datetime.now().strftime("%H:%M")
@@ -621,14 +621,14 @@ with tab_vkoyht:
                 rv["hyvaksynta_huomio"] = ""
                 hyv_muutettu = True
 
-            if b2.button(tr("selvitys_nappi", kieli), key=f"sel_{btn_id}", use_container_width=True):
+            if b2.button(tr("selvitys_nappi", kieli), key=f"sel_{btn_id}", width="stretch"):
                 rv["hyvaksynta_tila"] = "selvitys"
                 rv["hyvaksynta_pvm"]  = date.today().strftime("%d.%m.%Y")
                 rv["hyvaksynta_klo"]  = __import__("datetime").datetime.now().strftime("%H:%M")
                 rv["hyvaksynta_kuka"] = "Työnjohtaja"
                 hyv_muutettu = True
 
-            if b3.button(tr("palauta", kieli), key=f"pal_{btn_id}", use_container_width=True):
+            if b3.button(tr("palauta", kieli), key=f"pal_{btn_id}", width="stretch"):
                 rv["hyvaksynta_tila"]   = "odottaa"
                 rv["hyvaksynta_pvm"]    = ""
                 rv["hyvaksynta_klo"]    = ""
@@ -737,7 +737,7 @@ if tab_tekijat is not None:
             naytto_cols = [c for c in naytto_cols if c in df_tek.columns]
             naytto = df_tek[naytto_cols].copy()
             naytto.columns = [c.replace("_"," ").title() for c in naytto_cols]
-            st.dataframe(naytto, use_container_width=True, hide_index=True)
+            st.dataframe(naytto, width="stretch", hide_index=True)
             st.divider()
 
         # Lisää uusi
@@ -925,7 +925,7 @@ if tab_projektit is not None:
                 c2.caption(p.get("luotu",""))
 
                 if p.get("tila") == "aktiivinen":
-                    if c3.button("✅ Valmis", key=f"valmis_{p['koodi']}", use_container_width=True):
+                    if c3.button("✅ Valmis", key=f"valmis_{p['koodi']}", width="stretch"):
                         rivit = lataa_ali_tunnit(p["nimi"])
                         tunnit_yht = sum(r.get("yht_h",0) for r in rivit)
                         viikot_set = set(r.get("viikko",0) for r in rivit)
@@ -946,7 +946,7 @@ if tab_projektit is not None:
                 else:
                     c3.caption("⚫ Valmis")
 
-                if c4.button("🗑️", key=f"poista_p_{p['koodi']}", use_container_width=True):
+                if c4.button("🗑️", key=f"poista_p_{p['koodi']}", width="stretch"):
                     rekisteri = [r for r in rekisteri if r["koodi"] != p["koodi"]]
                     tallenna_projektirekisteri(rekisteri)
                     st.rerun()
@@ -963,7 +963,7 @@ if tab_projektit is not None:
             if ammattinimikkeet:
                 df_nim = pd.DataFrame(ammattinimikkeet)
                 df_nim.columns = ["Nimike", "Kuvaus", "€/h"]
-                st.dataframe(df_nim, use_container_width=True, hide_index=True)
+                st.dataframe(df_nim, width="stretch", hide_index=True)
                 st.divider()
 
             # Lisää uusi
@@ -1047,7 +1047,7 @@ if tab_historia is not None:
                                 "urakka_h","lisatyo_h","tekijoita"]].copy()
                 naytto.columns = ["Projekti","Valmistui","Kesto (vko)","Tunnit yht.",
                                    "Urakka (h)","Lisätyö (h)","Tekijöitä"]
-                st.dataframe(naytto, use_container_width=True, hide_index=True)
+                st.dataframe(naytto, width="stretch", hide_index=True)
 
                 st.divider()
                 st.markdown("### 💡 Tarjouslaskennan apuväline")
@@ -1106,7 +1106,7 @@ if tab_viranomainen is not None:
             st.info(f"Ei työntekijöitä työmaalla kaudella {int(vi_kk):02d}/{int(vi_vuosi)}.")
         else:
             puuttuvia = int(df_vi["_puuttuu"].sum())
-            st.dataframe(df_vi.drop(columns=["_puuttuu"]), use_container_width=True, hide_index=True)
+            st.dataframe(df_vi.drop(columns=["_puuttuu"]), width="stretch", hide_index=True)
             if puuttuvia:
                 st.error(f"⚠️ {puuttuvia} tekijältä puuttuu viranomaistietoja "
                          "(veronumero/synt.aika/Y-tunnus). Täydennä Tekijälistalla ennen lähetystä.")
@@ -1118,11 +1118,11 @@ if tab_viranomainen is not None:
             c1.download_button("⬇️ Lataa Excel-ilmoitus", data=xlsx,
                 file_name=f"tyontekijailmoitus_{int(vi_vuosi)}_{int(vi_kk):02d}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True)
+                width="stretch")
             csv = VH.tyontekijailmoitus_csv(df_vi)
             c2.download_button("⬇️ Lataa CSV", data=csv,
                 file_name=f"tyontekijailmoitus_{int(vi_vuosi)}_{int(vi_kk):02d}.csv",
-                mime="text/csv", use_container_width=True)
+                mime="text/csv", width="stretch")
 
         st.divider()
         st.caption("ℹ️ Ilmoitus annetaan Verohallinnolle kuukausittain (OmaVero tai "

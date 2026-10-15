@@ -266,15 +266,15 @@ with st.sidebar:
     st.caption(f"👤 {kayttaja.get('nimi', kayttaja['tunnus'])} · {A.ROOLIT[rooli]['nimi']}")
     # Kielivalinta (työntekijän dokumentointinäkymä on kaksikielinen)
     c_fi, c_ru = st.columns(2)
-    if c_fi.button("🇫🇮 Suomi", use_container_width=True,
+    if c_fi.button("🇫🇮 Suomi", width="stretch",
                    type="primary" if st.session_state.get("kieli", "fi") == "fi" else "secondary"):
         st.session_state["kieli"] = "fi"
         st.rerun()
-    if c_ru.button("🇷🇺 Русский", use_container_width=True,
+    if c_ru.button("🇷🇺 Русский", width="stretch",
                    type="primary" if st.session_state.get("kieli", "fi") == "ru" else "secondary"):
         st.session_state["kieli"] = "ru"
         st.rerun()
-    if st.button("🔓 Kirjaudu ulos", use_container_width=True):
+    if st.button("🔓 Kirjaudu ulos", width="stretch"):
         A.kirjaudu_ulos()
         st.rerun()
 
@@ -325,7 +325,7 @@ def _kuvakohta(nro: str, vaihe: str, otsikko: str, dok: dict, pakollinen: bool =
             uudet = list(uudet or []) + [kamera]
         teksti = st.text_input(tr("asb_kuvateksti", kieli), key=f"txt_{nro}_{vaihe}_{nollaus}")
         if uudet and st.button(tr("asb_tallenna_kuvat", kieli), type="primary",
-                               key=f"save_{nro}_{vaihe}", use_container_width=True):
+                               key=f"save_{nro}_{vaihe}", width="stretch"):
             _tallenna_kuvat(nro, vaihe, uudet, teksti)
             st.session_state[f"reset_{nro}_{vaihe}"] = nollaus + 1
             st.success(tr("asb_tallennettu", kieli))
@@ -338,7 +338,7 @@ def _kuvakohta(nro: str, vaihe: str, otsikko: str, dok: dict, pakollinen: bool =
                 if data:
                     sarakkeet[i % 3].image(
                         data, caption=f"{k.get('aika','')} {k.get('teksti','')}".strip(),
-                        use_container_width=True)
+                        width="stretch")
 
 
 def nayta_dokumentointi(sallitut_kohteet: list):
@@ -376,14 +376,14 @@ def nayta_dokumentointi(sallitut_kohteet: list):
     havainnot = st.text_area(tr("asb_havainnot", kieli),
                              value=dok.get("havainnot", ""),
                              placeholder=tr("asb_havainnot_ph", kieli), height=100)
-    if st.button(tr("asb_tallenna_hav", kieli), use_container_width=True):
+    if st.button(tr("asb_tallenna_hav", kieli), width="stretch"):
         dok["havainnot"] = havainnot
         tallenna_dok(nro, dok)
         _loki("Tallensi havainnot", nro)
         st.success(tr("asb_tallennettu", kieli))
 
     if _lopetus_kuvia(dok) > 0 and not dok.get("purku_kuitattu"):
-        if st.button(tr("asb_purku_valmis", kieli), type="primary", use_container_width=True):
+        if st.button(tr("asb_purku_valmis", kieli), type="primary", width="stretch"):
             dok["purku_kuitattu"] = datetime.now().strftime("%d.%m.%Y %H:%M")
             dok["havainnot"] = havainnot
             tallenna_dok(nro, dok)
@@ -464,7 +464,7 @@ with tab_kohteet:
                 "Ennakkoilm.": "✅ " + _pvm_fi(k["ennakkoilmoitus_jatetty"])
                                if k.get("ennakkoilmoitus_jatetty") else "—",
             })
-        st.dataframe(pd.DataFrame(rivit), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rivit), width="stretch", hide_index=True)
     else:
         st.info("Ei kohteita vielä. Lisää ensimmäinen Cateva-kohde alta.")
 
@@ -642,7 +642,7 @@ with tab_tarjoukset:
                 "Summa €": t.get("loppusumma", ""),
             } for t in sorted(tarjoukset, key=lambda x: x.get("saapunut", ""),
                               reverse=True)]),
-                use_container_width=True, hide_index=True)
+                width="stretch", hide_index=True)
 
             tj_valinta = st.selectbox(
                 "Käsiteltävä tarjous",
@@ -684,7 +684,7 @@ with tab_tarjoukset:
                 df_rivit = pd.DataFrame(TL.oletustarjousrivit(hinnasto))
             muokatut = st.data_editor(
                 df_rivit[["nimi", "maara", "yksikko", "a_hinta"]],
-                num_rows="dynamic", use_container_width=True, key=f"tj_rivit_{tj_valinta}",
+                num_rows="dynamic", width="stretch", key=f"tj_rivit_{tj_valinta}",
                 column_config={
                     "nimi": st.column_config.TextColumn("Työvaihe / kustannus", width="large"),
                     "maara": st.column_config.NumberColumn("Määrä", min_value=0.0, step=0.5),
@@ -744,7 +744,7 @@ with tab_tarjoukset:
             if pdf_tarjous:
                 st.download_button("⬇️ Esikatsele / lataa tarjous", data=pdf_tarjous,
                                    file_name=f"tarjous_asbestipurku_{t_slug}.pdf",
-                                   mime="application/pdf", use_container_width=True)
+                                   mime="application/pdf", width="stretch")
                 tj_varmistus = st.checkbox("Olen esikatsellut tarjouksen", key="tj_varmistus")
                 if st.button("📧 Lähetä tarjous", type="primary",
                              disabled=not tj_varmistus, key="tj_laheta"):
@@ -803,7 +803,7 @@ with tab_tarjoukset:
                 st.caption("Hinnaston muutokset vaikuttavat uusiin tarjouksiin. "
                            "Hinnat ALV 0 %.")
                 h_df = st.data_editor(pd.DataFrame(hinnasto)[["nimi", "yksikko", "hinta"]],
-                                      num_rows="dynamic", use_container_width=True,
+                                      num_rows="dynamic", width="stretch",
                                       key="h_editor")
                 a1, a2, a3 = st.columns(3)
                 a_min = a1.number_input("Minimiveloitus €",
@@ -955,7 +955,7 @@ with tab_ilmoitukset:
 
         with g1:
             if st.button("📄 Luo turvallisuussuunnitelma (PDF)", type="primary",
-                         use_container_width=True, key="g_suunnitelma"):
+                         width="stretch", key="g_suunnitelma"):
                 tiedot = _yhteiset_tiedot()
                 tiedot["osallistujat"] = [(kayttaja.get("nimi", ""), f"{DOK.YRITYS['nimi']}, Työnjohto")] + \
                                          [(n, f"{DOK.YRITYS['nimi']}, Purkutyö") for n in i_tt]
@@ -976,11 +976,11 @@ with tab_ilmoitukset:
                 st.download_button("⬇️ Lataa turvallisuussuunnitelma",
                                    data=st.session_state["pdf_suunnitelma"],
                                    file_name=f"turvallisuussuunnitelma_{tiedosto_slug(i_nro)}.pdf",
-                                   mime="application/pdf", use_container_width=True)
+                                   mime="application/pdf", width="stretch")
 
         with g2:
             if st.button("📄 Luo ennakkoilmoituksen esitäyttö (PDF)", type="primary",
-                         use_container_width=True, key="g_ennakko"):
+                         width="stretch", key="g_ennakko"):
                 tiedot = _yhteiset_tiedot()
                 tiedot["ilmoittaja"] = kayttaja.get("nimi", "")
                 valitut_pat = [p for p in patevyydet if p.get("nimi") in i_tt]
@@ -994,7 +994,7 @@ with tab_ilmoitukset:
                 st.download_button("⬇️ Lataa esitäyttö",
                                    data=st.session_state["pdf_ennakko"],
                                    file_name=f"ennakkoilmoitus_esitaytto_{tiedosto_slug(i_nro)}.pdf",
-                                   mime="application/pdf", use_container_width=True)
+                                   mime="application/pdf", width="stretch")
 
         st.divider()
         st.markdown("#### Ennakkoilmoituksen jättö AVIin")
@@ -1102,7 +1102,7 @@ with tab_raportti:
                 height=90, key="r_huomiot")
 
             if st.button("📑 Kokoa aloitus- ja lopetusraportti (PDF)", type="primary",
-                         key="r_kokoa", use_container_width=True):
+                         key="r_kokoa", width="stretch"):
                 rk["raportti_huomiot"] = r_huomiot
                 tallenna_kohteet(kohteet)
                 with st.spinner("Kootaan raporttia…"):
@@ -1151,7 +1151,7 @@ with tab_raportti:
                         "Esikatsele lataamalla ennen lähetystä.")
                 st.download_button("⬇️ Esikatsele / lataa raportti", data=pdf_valmis,
                                    file_name=f"asbestipurkutyon_aloitus_ja_lopetusraportti_{r_slug}.pdf",
-                                   mime="application/pdf", use_container_width=True)
+                                   mime="application/pdf", width="stretch")
 
                 st.markdown("#### 📧 Lähetys Catevalle")
                 aihe = f"Asbestityön aloitus- ja lopetusraportti {r_nro} — {rk.get('osoite','')}"
@@ -1286,7 +1286,7 @@ if tab_patevyydet is not None:
                     "Tiiviystestaus": _pvm_fi(p.get("tiiviystestaus_pvm", "")),
                     "Koulutustodistus": _pvm_fi(p.get("koulutus_pvm", "")),
                     "Rekisterissä": "✅" if p.get("rekisterissa") else "❌",
-                } for p in patevyydet]), use_container_width=True, hide_index=True)
+                } for p in patevyydet]), width="stretch", hide_index=True)
 
             nimet = [p.get("nimi", "") for p in patevyydet]
             with st.expander("➕ Lisää tai päivitä työntekijän pätevyydet",

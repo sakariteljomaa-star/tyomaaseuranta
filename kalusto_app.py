@@ -152,7 +152,7 @@ if skannaus_nro:
         # Laite varastossa → voi lähettää työmaakohtaisesti
         st.subheader("📤 Lähetä työmaakohtaisesti")
         tyomaa = st.text_input("Työmaa / kohde", placeholder="esim. Valteri-koulu", key="sk_tyomaa")
-        if st.button("✅ Ota käyttöön", type="primary", use_container_width=True, key="sk_checkout"):
+        if st.button("✅ Ota käyttöön", type="primary", width="stretch", key="sk_checkout"):
             if not tekija:
                 st.error("Syötä nimesi.")
             elif not tyomaa:
@@ -167,7 +167,7 @@ if skannaus_nro:
         st.subheader("📥 Palauta varastolle")
         palautus_huomio = st.text_input("Huomio palautuksesta (vapaaehtoinen)",
                                          placeholder="Kaikki OK / Suodatin vaihdettu / ...", key="sk_pal_hm")
-        if st.button("📥 Palauta varastolle", type="primary", use_container_width=True, key="sk_return"):
+        if st.button("📥 Palauta varastolle", type="primary", width="stretch", key="sk_return"):
             if not tekija:
                 st.error("Syötä nimesi.")
             else:
@@ -182,7 +182,7 @@ if skannaus_nro:
     with st.expander("🔴 Ilmoita viasta tai vahingoittumisesta"):
         vika_kuvaus = st.text_area("Kuvaa vika tai vahinko", key="sk_vika",
                                     placeholder="esim. Imurin letku on halki, laite ei käynnisty...")
-        if st.button("🔴 Lähetä vikailmoitus", type="secondary", use_container_width=True, key="sk_vika_btn"):
+        if st.button("🔴 Lähetä vikailmoitus", type="secondary", width="stretch", key="sk_vika_btn"):
             if not tekija:
                 st.error("Syötä nimesi.")
             elif not vika_kuvaus:
@@ -227,7 +227,7 @@ st.caption(f"{kayttaja.get('nimi', kayttaja['tunnus'])}  ·  {A.ROOLIT[rooli]['n
 
 with st.sidebar:
     st.caption(f"👤 {kayttaja.get('nimi', kayttaja['tunnus'])}")
-    if st.button("🔓 Kirjaudu ulos", use_container_width=True):
+    if st.button("🔓 Kirjaudu ulos", width="stretch"):
         A.kirjaudu_ulos()
         st.rerun()
 
@@ -288,7 +288,7 @@ with tab_yht:
         suod_sij = f2.multiselect("Sijainti", sorted(df_t["Sijainti"].unique()),
                                    default=list(df_t["Sijainti"].unique()))
         suod = df_t[df_t["Kategoria"].isin(suod_kat) & df_t["Sijainti"].isin(suod_sij)]
-        st.dataframe(suod, use_container_width=True, hide_index=True)
+        st.dataframe(suod, width="stretch", hide_index=True)
 
 # ── QR-KOODIT ─────────────────────────────────────────────────────────────────
 with tab_qr:
@@ -323,13 +323,13 @@ with tab_qr:
         tc1, tc2 = st.columns([2, 1])
         tarrakoko = tc1.selectbox("Tarran koko", list(TARRAKOOT.keys()), index=1, key="tarrakoko")
         tc1.caption("💡 Pieni = käsikoneet · Keskikoko = imurit/piikkauskoneet · Iso = alipaineistajat")
-        if tc2.button("📄 Luo tarra-PDF", type="primary", use_container_width=True):
+        if tc2.button("📄 Luo tarra-PDF", type="primary", width="stretch"):
             pdf = luo_tarra_pdf(valitut, app_url, tarrakoko)
             st.session_state["_tarra_pdf"] = pdf
         if st.session_state.get("_tarra_pdf"):
             st.download_button("⬇️ Lataa tarra-PDF", data=st.session_state["_tarra_pdf"],
                                file_name="konetarrat.pdf", mime="application/pdf",
-                               use_container_width=True)
+                               width="stretch")
 
         st.divider()
 
@@ -374,7 +374,7 @@ with tab_laitteet:
                 st.rerun()
 
         st.divider()
-        st.dataframe(pd.DataFrame(laitteet), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(laitteet), width="stretch", hide_index=True)
 
 # ── TUO EXCEL ─────────────────────────────────────────────────────────────────
 with tab_tuo:
@@ -385,7 +385,7 @@ with tab_tuo:
     if xlsx_f:
         uudet = lue_kalustorekisteri(xlsx_f)
         st.success(f"Löydettiin {len(uudet)} laitetta.")
-        st.dataframe(pd.DataFrame(uudet), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(uudet), width="stretch", hide_index=True)
         if st.button("✅ Tallenna rekisteriin", type="primary", key="kalusto_tall"):
             # Säilytä olemassa olevien laitteiden kunto- ja sijaintitiedot
             vanhat = {l["nro"]: l for l in laitteet}
@@ -439,7 +439,7 @@ with tab_historia:
         df_s = df_s.sort_values(["pvm","klo"], ascending=False).copy()
         df_s["tyyppi"] = df_s["tyyppi"].map(TYYPPI_LABEL).fillna(df_s["tyyppi"])
         st.dataframe(df_s[["pvm","klo","laite_nro","tyyppi","tyomaa","tekija","huomio"]],
-                     use_container_width=True, hide_index=True)
+                     width="stretch", hide_index=True)
         st.caption(f"{len(df_s)} tapahtumaa")
 
 # ── KÄYTTÄJÄT (vain admin) ─────────────────────────────────────────────────────

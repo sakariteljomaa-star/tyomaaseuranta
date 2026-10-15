@@ -54,7 +54,7 @@ if rooli == "tyontekija":
 
 with st.sidebar:
     st.caption(f"👤 {kayttaja.get('nimi', kayttaja['tunnus'])}  ·  {A.ROOLIT[rooli]['nimi']}")
-    if st.button("🔓 Kirjaudu ulos", use_container_width=True, key="logout_btn"):
+    if st.button("🔓 Kirjaudu ulos", width="stretch", key="logout_btn"):
         A.kirjaudu_ulos()
         st.rerun()
 
@@ -101,7 +101,7 @@ with st.sidebar:
     )
     st.session_state["tuontikansio"] = tuontikansio
 
-    if st.button("🔄 Lue kansio", use_container_width=True):
+    if st.button("🔄 Lue kansio", width="stretch"):
         with st.spinner("Luetaan kansiota..."):
             kansiotieto = lue_kansio(tuontikansio)
 
@@ -165,7 +165,7 @@ with st.sidebar:
         _alku = st.date_input("Alkupäivä", value=_tanaan.replace(day=1), key="nv_alku")
         _loppu = st.date_input("Loppupäivä", value=_tanaan, key="nv_loppu")
 
-        if st.button("🔌 Testaa yhteys", use_container_width=True, key="nv_test"):
+        if st.button("🔌 Testaa yhteys", width="stretch", key="nv_test"):
             ok, viesti = NV.testaa_yhteys(_creds)
             if ok:
                 st.success(viesti)
@@ -173,7 +173,7 @@ with st.sidebar:
                 st.error(viesti)
 
         if st.button("⬇️ Hae kaikki (ostot, myynti, tunnit)", type="primary",
-                     use_container_width=True, key="nv_hae"):
+                     width="stretch", key="nv_hae"):
             haku = projekti.split(",")[0].strip() if projekti else ""
             with st.spinner("Haetaan Netvisorista..."):
                 try:
@@ -261,7 +261,7 @@ def _nayta_kululaji(df_kaikki, kululaji, sarakkeet):
         naytto = sub[sarakkeet].copy()
         if "pvm" in naytto.columns:
             naytto["pvm"] = naytto["pvm"].dt.strftime("%d.%m.%Y")
-        st.dataframe(naytto, use_container_width=True, hide_index=True)
+        st.dataframe(naytto, width="stretch", hide_index=True)
     st.markdown(f"**Yhteensä: {EURO(osa['summa'].sum())}**")
 
 # ── VÄLILEHDET ──────────────────────────────────────────────────────────────────
@@ -335,7 +335,7 @@ with tab_myynti:
             n["lasku_pvm"] = n["lasku_pvm"].dt.strftime("%d.%m.%Y")
             n["erapaiva"]  = n["erapaiva"].dt.strftime("%d.%m.%Y")
             n.columns = ["Lasku nro","Laskupvm","Sisältö","Summa (alv 0%)","Avoimena","Eräpäivä","Tila"]
-            st.dataframe(n, use_container_width=True, hide_index=True)
+            st.dataframe(n, width="stretch", hide_index=True)
             st.caption(f"Yhteensä: {EURO(osa['summa'].sum())} | Avoimena: {EURO(osa['avoimena'].sum())}")
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -372,7 +372,7 @@ with tab_tunnit:
         meta  = st.session_state.get("_tk_meta", {})
         df_nn = df_tk[df_tk["Työtunnit"] > 0]
         st.caption(f"Projekti: **{meta.get('projekti','')}** | Jakso: {meta.get('jakso','')} | Tunnit: **{meta.get('yht_tunnit',0):.1f} h**")
-        st.dataframe(df_nn, use_container_width=True, hide_index=True)
+        st.dataframe(df_nn, width="stretch", hide_index=True)
         st.markdown("**Lisää viikkona:**")
         ti1, ti2, ti3 = st.columns(3)
         ti_vko  = ti1.number_input("Viikko",1,53,int(date.today().strftime("%V")),key="ti_vko")
@@ -439,7 +439,7 @@ with tab_tunnit:
             "Vesivahinko(h)":df_t["vesivahinko_h"].sum(),"Yht.(h)":df_t["yht_h"].sum(),
             "Tuntikust.(€)":df_t["tuntikust_eur"].sum(),"Jäte(€)":df_t["jate_eur"].sum(),
             "Kalusto(€)":df_t["kalusto_eur"].sum(),"KAIKKI YHT.(€)":df_t["kaikki_yht_eur"].sum()}])
-        st.dataframe(pd.concat([n,yr],ignore_index=True), use_container_width=True, hide_index=True)
+        st.dataframe(pd.concat([n,yr],ignore_index=True), width="stretch", hide_index=True)
         st.caption(f"Tuntiveloitus: {tuntihinta} €/h")
         with st.expander("🗑️ Poista viikko"):
             pv = st.selectbox("Viikko",[v["viikko"] for v in viikot],key="pvk")
@@ -520,7 +520,7 @@ with tab_ali_tunnit:
                 "To":rv.get("to") or "","Pe":rv.get("pe") or "","La":rv.get("la") or "","Su":rv.get("su") or "",
                 "Yht(h)":h,"Kategoria":rv.get("kategoria",""),"Hinta":hs,
                 "Summa(€)":f"{sm:,.2f}" if sm else "–","Huomio":rv.get("huomio","")})
-        st.dataframe(pd.DataFrame(tbl),use_container_width=True,hide_index=True)
+        st.dataframe(pd.DataFrame(tbl),width="stretch",hide_index=True)
         yhk=sum(r.get("yht_h",0) for r in vkr)
         yhe=sum((r.get("yht_h",0)*(r.get("tuntihinta") or 0) if r.get("laskutustapa")=="tuntihinta"
                  else (r.get("kiintea_hinta") or 0) if r.get("laskutustapa")=="kiintea" else 0) for r in vkr)
@@ -597,7 +597,7 @@ with tab_palkat:
             st.markdown(f"**── {kat.upper()} ──**")
             n=osa[["pvm","tosite","selite","brutto","kerroin","kokonaiskust","kategoria"]].copy()
             n.columns=["Pvm","Tosite","Selite","Brutto (€)","Kerroin","Kokonaiskust. (€)","Kategoria"]
-            st.dataframe(n,use_container_width=True,hide_index=True)
+            st.dataframe(n,width="stretch",hide_index=True)
         st.markdown(f"**YHTEENSÄ — Brutto: {EURO(df_p['brutto'].sum())} | Kokonaiskust.: {EURO(df_p['kokonaiskust'].sum())}**")
         with st.expander("🗑️ Poista palkkajakso"):
             va={f"{r['pvm']} – {r['selite']} – {r['brutto']:.2f}€":r["id"] for r in palkat}
@@ -680,7 +680,7 @@ with tab_kaikki:
             suod = suod[suod["selite"].str.contains(hk,case=False,na=False)]
         n = suod[["pvm","tosite","lasku","selite","summa","kategoria","kululaji","alv_tunnus","laskentakohteet"]].copy()
         n["pvm"] = n["pvm"].dt.strftime("%d.%m.%Y")
-        st.dataframe(n, use_container_width=True, hide_index=True)
+        st.dataframe(n, width="stretch", hide_index=True)
         st.caption(f"{len(suod)} riviä | Yhteensä: {EURO(suod['summa'].sum())}")
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -708,7 +708,7 @@ with tab_yht:
         pivot = (df_all.groupby(["kululaji","kategoria"])["summa"]
                  .sum().unstack(fill_value=0).reset_index())
         pivot["Yhteensä"] = pivot.select_dtypes("number").sum(axis=1)
-        st.dataframe(pivot, use_container_width=True, hide_index=True)
+        st.dataframe(pivot, width="stretch", hide_index=True)
         kls = ["Ostot","Jätemaksut","Aliurakoitsijat","Kalusto"]
         cols = st.columns(len(kls))
         for i,kl in enumerate(kls):
@@ -722,7 +722,7 @@ with tab_yht:
             "Kuvaus":["Normaali 25,5% – vähennetään tilityksessä","Käänteinen rakennusalan ALV"],
             "Summa (alv 0%)":[EURO(koos),EURO(raos)],
             "ALV-vähennysoikeus":[EURO(koos*0.255),"–"],
-        }), use_container_width=True, hide_index=True)
+        }), width="stretch", hide_index=True)
         st.divider()
 
     # Tuntiseuranta
@@ -805,7 +805,7 @@ with tab_viranomainen:
         else:
             st.markdown("**Täydennä/korjaa Y-tunnukset ja yhteyshenkilöt:**")
             muokattu = st.data_editor(
-                df_u, use_container_width=True, hide_index=True, key="u_editor",
+                df_u, width="stretch", hide_index=True, key="u_editor",
                 column_config={
                     "Toimittaja": st.column_config.TextColumn("Toimittaja", width="medium"),
                     "Y-tunnus": st.column_config.TextColumn("Y-tunnus"),
@@ -829,10 +829,10 @@ with tab_viranomainen:
             b2.download_button("⬇️ Lataa Excel", data=xlsx,
                 file_name=f"urakkailmoitus_{int(u_vuosi)}_{int(u_kk):02d}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True)
+                width="stretch")
             b3.download_button("⬇️ Lataa CSV", data=VH.urakkailmoitus_csv(muokattu),
                 file_name=f"urakkailmoitus_{int(u_vuosi)}_{int(u_kk):02d}.csv",
-                mime="text/csv", use_container_width=True)
+                mime="text/csv", width="stretch")
 
             st.caption(f"Yhteensä kaudella: {EURO(muokattu['Summa (alv 0)'].sum())}")
 

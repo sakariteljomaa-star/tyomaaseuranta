@@ -231,7 +231,7 @@ def nayta_loki():
             s = c2.multiselect("Sovellus", sorted(df["sovellus"].dropna().unique()))
             if s:
                 df = df[df["sovellus"].isin(s)]
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(df, width="stretch", hide_index=True)
         st.caption(f"{len(df)} tapahtumaa (uusimmat ensin, max 500)")
     except Exception as e:
         st.info(f"Lokia ei voitu ladata: {e}")
@@ -260,7 +260,7 @@ def nayta_kayttajahallinta():
             "Projektit": ", ".join(k.get("projektit", [])) or "kaikki",
             "Tila": "✅" if k.get("aktiivinen", True) else "⛔",
         } for k in kayttajat]
-        st.dataframe(pd.DataFrame(taul), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(taul), width="stretch", hide_index=True)
 
     # Uusi käyttäjä
     with st.expander("➕ Lisää käyttäjä", expanded=len(kayttajat) <= 1):
