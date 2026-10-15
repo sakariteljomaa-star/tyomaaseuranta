@@ -412,15 +412,24 @@ st.title("☣️ Asbestikohteet — Cateva-aliurakat")
 st.caption("Uudenmaan Asbestipurku Oy · työnumero on kaiken avain")
 
 valilehti_nimet = ["📋 Kohteet", "💶 Tarjoukset", "📄 Ilmoitukset", "📸 Dokumentointi",
-                   "📑 Raportti", "🧪 Labroc-tulokset", "🎓 Pätevyydet"]
+                   "📑 Raportti", "🧪 Labroc-tulokset"]
+# Pätevyydet sisältävät terveystarkastustietoja (GDPR 9 art., työelämän tietosuojalaki 5 §):
+# vain työnjohto (admin + työnjohtaja), joka tekee niiden perusteella päätöksiä.
+if on_tj:
+    valilehti_nimet.append("🎓 Pätevyydet")
 if on_admin:
     valilehti_nimet.append("👤 Käyttäjät")
 _vl = st.tabs(valilehti_nimet)
 (tab_kohteet, tab_tarjoukset, tab_ilmoitukset, tab_dok, tab_raportti,
- tab_labroc, tab_patevyydet) = _vl[:7]
-tab_kayttajat = _vl[7] if on_admin else None
+ tab_labroc) = _vl[:6]
+_i = 6
+tab_patevyydet = None
+if on_tj:
+    tab_patevyydet = _vl[_i]; _i += 1
+tab_kayttajat = _vl[_i] if on_admin else None
 
-patevyydet = lataa_patevyydet()
+# Katselijan istuntoon ei ladata terveystietoja lainkaan
+patevyydet = lataa_patevyydet() if on_tj else []
 
 
 # ── KOHTEET (prompti 1) ───────────────────────────────────────────────────────
@@ -1258,82 +1267,83 @@ with tab_labroc:
 
 # ── PÄTEVYYDET (prompti 3) ────────────────────────────────────────────────────
 
-with tab_patevyydet:
-    if not on_tj:
-        st.info("Vain työnjohto hallinnoi pätevyysrekisteriä.")
-    else:
-        st.caption("Ennakkoilmoituksen työntekijätiedot haetaan tästä rekisteristä. "
-                   "Vanhenevista pätevyyksistä varoitetaan Kohteet-välilehdellä (alle 60 vrk).")
-        for v in _patevyys_varoitukset(patevyydet):
-            st.error(v) if v.startswith("🔴") else st.warning(v)
+if tab_patevyydet is not None:
+    with tab_patevyydet:
+        if not on_tj:
+            st.info("Vain työnjohto hallinnoi pätevyysrekisteriä.")
+        else:
+            st.caption("Ennakkoilmoituksen työntekijätiedot haetaan tästä rekisteristä. "
+                       "Vanhenevista pätevyyksistä varoitetaan Kohteet-välilehdellä (alle 60 vrk).")
+            for v in _patevyys_varoitukset(patevyydet):
+                st.error(v) if v.startswith("🔴") else st.warning(v)
 
-        if patevyydet:
-            st.dataframe(pd.DataFrame([{
-                "Nimi": p.get("nimi", ""),
-                "Työnantaja": p.get("tyonantaja", ""),
-                "Terveystarkastus": _pvm_fi(p.get("terveystarkastus_pvm", "")),
-                "Voimassa": _pvm_fi(p.get("terveystarkastus_voimassa", "")),
-                "Tiiviystestaus": _pvm_fi(p.get("tiiviystestaus_pvm", "")),
-                "Koulutustodistus": _pvm_fi(p.get("koulutus_pvm", "")),
-                "Rekisterissä": "✅" if p.get("rekisterissa") else "❌",
-            } for p in patevyydet]), use_container_width=True, hide_index=True)
+            if patevyydet:
+                st.dataframe(pd.DataFrame([{
+                    "Nimi": p.get("nimi", ""),
+                    "Työnantaja": p.get("tyonantaja", ""),
+                    "Terveystarkastus": _pvm_fi(p.get("terveystarkastus_pvm", "")),
+                    "Voimassa": _pvm_fi(p.get("terveystarkastus_voimassa", "")),
+                    "Tiiviystestaus": _pvm_fi(p.get("tiiviystestaus_pvm", "")),
+                    "Koulutustodistus": _pvm_fi(p.get("koulutus_pvm", "")),
+                    "Rekisterissä": "✅" if p.get("rekisterissa") else "❌",
+                } for p in patevyydet]), use_container_width=True, hide_index=True)
 
-        nimet = [p.get("nimi", "") for p in patevyydet]
-        with st.expander("➕ Lisää tai päivitä työntekijän pätevyydet",
-                         expanded=not patevyydet):
-            muokattava = st.selectbox("Työntekijä", ["— uusi —"] + nimet, key="p_valinta")
-            pohja = next((p for p in patevyydet if p.get("nimi") == muokattava), {})
+            nimet = [p.get("nimi", "") for p in patevyydet]
+            with st.expander("➕ Lisää tai päivitä työntekijän pätevyydet",
+                             expanded=not patevyydet):
+                muokattava = st.selectbox("Työntekijä", ["— uusi —"] + nimet, key="p_valinta")
+                pohja = next((p for p in patevyydet if p.get("nimi") == muokattava), {})
 
-            def _pvm(avain):
-                try:
-                    return date.fromisoformat(pohja.get(avain, ""))
-                except Exception:
-                    return None
-            p1, p2 = st.columns(2)
-            p_nimi = p1.text_input("Nimi *", value=pohja.get("nimi", ""), key="p_nimi")
-            p_tyonantaja = p1.text_input("Työnantaja",
-                                         value=pohja.get("tyonantaja", DOK.YRITYS["nimi"]),
-                                         key="p_tyonantaja")
-            p_terveys = p1.date_input("Terveystarkastus suoritettu", value=_pvm("terveystarkastus_pvm"),
-                                      key="p_terveys", format="DD.MM.YYYY")
-            p_voimassa = p1.date_input("Terveystarkastus voimassa (asti)",
-                                       value=_pvm("terveystarkastus_voimassa"),
-                                       key="p_voimassa", format="DD.MM.YYYY")
-            p_tiiviys = p2.date_input("Hengityksensuojaimen tiiviystestaus",
-                                      value=_pvm("tiiviystestaus_pvm"),
-                                      key="p_tiiviys", format="DD.MM.YYYY")
-            p_koulutus = p2.date_input("Todistus erityisestä opetuksesta",
-                                       value=_pvm("koulutus_pvm"),
-                                       key="p_koulutus", format="DD.MM.YYYY")
-            p_rek = p2.checkbox("Asbestipurkutyöhön pätevien henkilöiden rekisterissä",
-                                value=pohja.get("rekisterissa", True), key="p_rek")
+                def _pvm(avain):
+                    try:
+                        return date.fromisoformat(pohja.get(avain, ""))
+                    except Exception:
+                        return None
+                p1, p2 = st.columns(2)
+                p_nimi = p1.text_input("Nimi *", value=pohja.get("nimi", ""), key="p_nimi")
+                p_tyonantaja = p1.text_input("Työnantaja",
+                                             value=pohja.get("tyonantaja", DOK.YRITYS["nimi"]),
+                                             key="p_tyonantaja")
+                p_terveys = p1.date_input("Terveystarkastus suoritettu", value=_pvm("terveystarkastus_pvm"),
+                                          key="p_terveys", format="DD.MM.YYYY")
+                p_voimassa = p1.date_input("Terveystarkastus voimassa (asti)",
+                                           value=_pvm("terveystarkastus_voimassa"),
+                                           key="p_voimassa", format="DD.MM.YYYY")
+                p_tiiviys = p2.date_input("Hengityksensuojaimen tiiviystestaus",
+                                          value=_pvm("tiiviystestaus_pvm"),
+                                          key="p_tiiviys", format="DD.MM.YYYY")
+                p_koulutus = p2.date_input("Todistus erityisestä opetuksesta",
+                                           value=_pvm("koulutus_pvm"),
+                                           key="p_koulutus", format="DD.MM.YYYY")
+                p_rek = p2.checkbox("Asbestipurkutyöhön pätevien henkilöiden rekisterissä",
+                                    value=pohja.get("rekisterissa", True), key="p_rek")
 
-            b1, b2 = st.columns(2)
-            if b1.button("💾 Tallenna", type="primary", key="p_tallenna"):
-                if not p_nimi.strip():
-                    st.error("Nimi vaaditaan.")
-                else:
-                    uusi = {
-                        "nimi": p_nimi.strip(), "tyonantaja": p_tyonantaja.strip(),
-                        "terveystarkastus_pvm": p_terveys.isoformat() if p_terveys else "",
-                        "terveystarkastus_voimassa": p_voimassa.isoformat() if p_voimassa else "",
-                        "tiiviystestaus_pvm": p_tiiviys.isoformat() if p_tiiviys else "",
-                        "koulutus_pvm": p_koulutus.isoformat() if p_koulutus else "",
-                        "rekisterissa": p_rek,
-                    }
-                    patevyydet = [p for p in patevyydet if p.get("nimi") != muokattava]
-                    patevyydet.append(uusi)
-                    tallenna_patevyydet(patevyydet)
-                    _loki("Päivitti pätevyydet", p_nimi)
-                    st.success("Tallennettu.")
+                b1, b2 = st.columns(2)
+                if b1.button("💾 Tallenna", type="primary", key="p_tallenna"):
+                    if not p_nimi.strip():
+                        st.error("Nimi vaaditaan.")
+                    else:
+                        uusi = {
+                            "nimi": p_nimi.strip(), "tyonantaja": p_tyonantaja.strip(),
+                            "terveystarkastus_pvm": p_terveys.isoformat() if p_terveys else "",
+                            "terveystarkastus_voimassa": p_voimassa.isoformat() if p_voimassa else "",
+                            "tiiviystestaus_pvm": p_tiiviys.isoformat() if p_tiiviys else "",
+                            "koulutus_pvm": p_koulutus.isoformat() if p_koulutus else "",
+                            "rekisterissa": p_rek,
+                        }
+                        patevyydet = [p for p in patevyydet if p.get("nimi") != muokattava]
+                        patevyydet.append(uusi)
+                        tallenna_patevyydet(patevyydet)
+                        _loki("Päivitti pätevyydet", p_nimi)
+                        st.success("Tallennettu.")
+                        st.rerun()
+                if muokattava != "— uusi —" and b2.button("🗑️ Poista", key="p_poista"):
+                    tallenna_patevyydet([p for p in patevyydet if p.get("nimi") != muokattava])
+                    _loki("Poisti pätevyydet", muokattava)
                     st.rerun()
-            if muokattava != "— uusi —" and b2.button("🗑️ Poista", key="p_poista"):
-                tallenna_patevyydet([p for p in patevyydet if p.get("nimi") != muokattava])
-                _loki("Poisti pätevyydet", muokattava)
-                st.rerun()
 
 
-# ── KÄYTTÄJÄT (vain admin) ────────────────────────────────────────────────────
+    # ── KÄYTTÄJÄT (vain admin) ────────────────────────────────────────────────────
 
 if tab_kayttajat is not None:
     with tab_kayttajat:

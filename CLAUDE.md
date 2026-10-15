@@ -219,5 +219,7 @@ password = "...(Gmailin sovellussalasana)..."
   ei ä/ö (esim. `valteri-koulu_tenholantie_15.json`).
 - Kieli: suomi + venäjä (käyttöliittymä). Raportit suomeksi.
 - Jokainen Netvisor-tuonti on itsenäinen: kukin osio lataa oman aineistonsa.
-- Tietosuoja: ks. `TIETOSUOJASELOSTE.md` ja `GDPR_ARVIOINTI.md`. Säilytysajat tietoryhmittäin
-  (verodata 6 v, terveystarkastustiedot vain työnjohdolle). Järjestelmä on henkilörekisteri.
+- Tietosuoja: ks. `TIETOSUOJASELOSTE.md`, `KASITTELYTOIMET.md` (GDPR 30 art.) ja `GDPR_ARVIOINTI.md`. Säilytysajat tietoryhmittäin
+  (verodata 6 v). Järjestelmä on henkilörekisteri. Asbestin pätevyystiedot (terveystarkastus)
+  ovat erityisiä henkilötietoja: vain `on_tj`-roolit, katselijalle ei ladata (`asbesti_app.py`).
+  Uusia henkilötietokenttiä lisättäessä päivitä myös KASITTELYTOIMET.md.

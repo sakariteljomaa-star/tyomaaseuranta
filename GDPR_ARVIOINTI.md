@@ -18,8 +18,8 @@
 4. **Tietosuojavastaavaa (DPO) ei vaadita** — pieni yritys, ei laajamittaista erityisdatan käsittelyä.
 5. **Vaikutustenarviointia (DPIA) ei todennäköisesti vaadita** — pieni mittakaava, ei
    järjestelmällistä valvontaa. *[tarkistettava, jos terveystietojen määrä kasvaa]*
-6. **Suurimmat puutteet:** US-hostaus (siirto EU:n ulkopuolelle), puuttuva käsittelytoimien
-   seloste, terveystietojen pääsynhallinta, automaattisen poiston puuttuminen.
+6. **Suurimmat puutteet:** US-hostaus (siirto EU:n ulkopuolelle) ja automaattisen poiston
+   puuttuminen. Käsittelytoimien seloste ja terveystietojen pääsynhallinta korjattu 15.10.2026.
 
 ---
 
@@ -46,13 +46,13 @@
 |---|---|---|---|
 | Oikeusperuste jokaiselle käsittelylle | 6, 9 art. | ✅ | Dokumentoitu tietosuojaselosteessa |
 | Informointi rekisteröidyille | 13, 14 art. | ⚠️ | Seloste päivitetty — **jakelu työntekijöille puuttuu** (T4) |
-| Käsittelytoimien seloste | 30 art. | ❌ | **Puuttuu** (T2) |
+| Käsittelytoimien seloste | 30 art. | ✅ | `KASITTELYTOIMET.md` (KT1–KT8) |
 | Tietoturva | 32 art. | ✅ | PBKDF2, RLS, roolit, loki, HTTPS |
 | Käsittelysopimukset (DPA) | 28 art. | ⚠️ | Supabase/Streamlit/Google DPA:t **varmistamatta** (T1) |
 | Siirrot EU:n ulkopuolelle | 44–49 art. | ⚠️ | Streamlit USA — **peruste varmistamatta** (T1) |
 | Säilytysajan rajaus | 5.1 e | ⚠️ | Määritelty — **automaattinen poisto puuttuu** (T6) |
 | Rekisteröidyn oikeudet | 15–22 art. | ⚠️ | Manuaalisesti hoidettavissa — ei henkilökohtaista vientiä (T7) |
-| Terveystietojen käsittely | 9 art. + TyöTSL 5 § | ⚠️ | **Katselija-rooli näkee** (T3) |
+| Terveystietojen käsittely | 9 art. + TyöTSL 5 § | ✅ | Rajattu työnjohdolle; nimetyt käsittelijät täydennettävä (KASITTELYTOIMET KT5) |
 | Tietoturvaloukkausten ilmoittaminen | 33, 34 art. | ⚠️ | Toimintamalli puuttuu (T5) |
 | Sisäänrakennettu tietosuoja | 25 art. | ✅ | Työntekijä ei näe muiden tietoja; viranomaistiedot vain TJ:lle |
 
@@ -67,7 +67,7 @@ EU:hun, mutta veronumerot ja terveystiedot käsitellään US-palvelimen muistiss
 käsittelysopimus kattaa Community Cloudin, siirto on sallittu. Muussa tapauksessa
 EU-hostaus (esim. Hetzner Saksa, n. 5–10 €/kk).
 
-### R2 — Terveystietojen liian laaja näkyvyys 🟠
+### R2 — Terveystietojen liian laaja näkyvyys ✅ korjattu 15.10.2026
 Asbesti-appin Pätevyydet-välilehti näkyy myös katselija-roolille. Työelämän
 tietosuojalain 5 §: terveydentilatietoja saavat käsitellä vain ne, jotka tekevät
 niiden perusteella päätöksiä, ja heidät on nimettävä.
@@ -94,8 +94,8 @@ mutta voivat sisältää nimiä ja kuvia.
 | # | Toimenpide | Prioriteetti | Vastuu | Tila |
 |---|---|---|---|---|
 | **T1** | **Selvitä Streamlit/Snowflaken DPA ja siirtoperuste** — onko Snowflake DPF-sertifioitu, kattaako DPA Community Cloudin, salliiko Community Cloudin käyttöehto henkilötiedot. Tarkista samalla Supabasen ja Googlen DPA:t. Jos ei kattavaa perustetta → EU-hostaus. | 🔴 Korkea | Sakari | ⏳ Kesken |
-| **T2** | Laadi **käsittelytoimien seloste** (30 art.) — voi pohjautua tämän dokumentin kohtaan 2 | 🔴 Korkea | Sakari / Claude | ☐ |
-| **T3** | **Rajaa Pätevyydet-välilehti** vain työnjohdolle (admin + työnjohtaja), piilota katselijalta. Nimeä terveystietoja käsittelevät henkilöt. | 🔴 Korkea | Claude (koodi) | ☐ |
+| **T2** | Laadi **käsittelytoimien seloste** (30 art.) — voi pohjautua tämän dokumentin kohtaan 2 | 🔴 Korkea | Sakari / Claude | ✅ 15.10.2026 |
+| **T3** | **Rajaa Pätevyydet-välilehti** vain työnjohdolle (admin + työnjohtaja), piilota katselijalta. Nimeä terveystietoja käsittelevät henkilöt. | 🔴 Korkea | Claude (koodi) | ✅ 15.10.2026 |
 | **T4** | **Informoi työntekijät** — lyhyt tietosuojailmoitus perehdytykseen ja aliurakkasopimuksiin (liite: "päätoteuttaja käsittelee työntekijöidenne tietoja lakisääteisiin ilmoituksiin") | 🟠 Keskitaso | Sakari | ☐ |
 | **T5** | Laadi **tietoturvaloukkauksen toimintamalli**: kuka tekee mitä, ilmoitus Tietosuojavaltuutetulle 72 h kuluessa | 🟠 Keskitaso | Sakari | ☐ |
 | **T6** | **Automaattinen poisto/anonymisointi** säilytysaikojen mukaan (esim. ylläpitotoiminto adminille) | 🟡 Matala | Claude (koodi) | ☐ |
