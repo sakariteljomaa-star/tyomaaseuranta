@@ -276,6 +276,7 @@ _tab_nimet = [
     "👷 Aliurakoitsijat",
     "🔧 Kalusto",
     "📋 Kaikki rivit",
+    "🏛️ Viranomaisilmoitukset",
 ]
 if on_admin:
     _tab_nimet.append("👤 Käyttäjät")
@@ -283,8 +284,8 @@ if on_admin:
 _tabs = st.tabs(_tab_nimet)
 (tab_yht, tab_myynti, tab_tunnit, tab_ali_tunnit,
  tab_palkat, tab_ostot_v, tab_jate, tab_ali,
- tab_kalusto, tab_kaikki) = _tabs[:10]
-tab_kayttajat = _tabs[10] if on_admin else None
+ tab_kalusto, tab_kaikki, tab_viranomainen) = _tabs[:11]
+tab_kayttajat = _tabs[11] if on_admin else None
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MYYNTI
@@ -770,3 +771,71 @@ if tab_kayttajat is not None:
         st.divider()
         if hasattr(A, "nayta_loki"):
             A.nayta_loki()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# VIRANOMAISILMOITUKSET — Urakkailmoitus (maksetut summat aliurakoitsijoille)
+# ══════════════════════════════════════════════════════════════════════════════
+with tab_viranomainen:
+    import verohallinto as VH
+    from storage import lataa_globaali, tallenna_globaali, lataa_projektirekisteri as _lpr
+    st.subheader("🏛️ Verohallinnon urakkailmoitus")
+    st.caption("Tilaajan kuukausittainen ilmoitus aliurakoitsijoille maksetuista summista. "
+               "Summat kootaan ostolaskuista (kululaji Aliurakoitsijat). Täydennä Y-tunnukset — "
+               "sovellus muistaa ne jatkossa.")
+
+    df_ostot_vi = pd.concat(
+        [_hae(k) for k in ["df_ostot","df_jate","df_ali_osto","df_kalusto","df_kaikki"] if not _hae(k).empty],
+        ignore_index=True) if any(not _hae(k).empty for k in
+        ["df_ostot","df_jate","df_ali_osto","df_kalusto","df_kaikki"]) else pd.DataFrame()
+
+    if df_ostot_vi.empty:
+        st.info("Lataa ensin ostolaskut (esim. Aliurakoitsijat-välilehti).")
+    else:
+        _proj = next((p for p in _lpr() if p["nimi"] == projekti), {"nimi": projekti})
+        vc1, vc2 = st.columns(2)
+        u_vuosi = vc1.number_input("Vuosi", value=date.today().year, step=1, key="u_vuosi")
+        u_kk = vc2.number_input("Kuukausi", min_value=1, max_value=12,
+                                value=date.today().month, step=1, key="u_kk")
+
+        rekisteri = {r["toimittaja"]: r for r in lataa_globaali("aliurakoitsijarekisteri")}
+        df_u = VH.kokoa_urakkailmoitus(df_ostot_vi, rekisteri, int(u_vuosi), int(u_kk))
+
+        if df_u.empty:
+            st.info(f"Ei aliurakkamaksuja kaudella {int(u_kk):02d}/{int(u_vuosi)}.")
+        else:
+            st.markdown("**Täydennä/korjaa Y-tunnukset ja yhteyshenkilöt:**")
+            muokattu = st.data_editor(
+                df_u, use_container_width=True, hide_index=True, key="u_editor",
+                column_config={
+                    "Toimittaja": st.column_config.TextColumn("Toimittaja", width="medium"),
+                    "Y-tunnus": st.column_config.TextColumn("Y-tunnus"),
+                    "Yhteyshenkilö": st.column_config.TextColumn("Yhteyshenkilö"),
+                    "Summa (alv 0)": st.column_config.NumberColumn("Summa (alv 0)", disabled=True, format="%.2f"),
+                    "Laskuja": st.column_config.NumberColumn("Laskuja", disabled=True),
+                })
+
+            b1, b2, b3 = st.columns(3)
+            if b1.button("💾 Tallenna Y-tunnukset", key="u_tall"):
+                for _, rv in muokattu.iterrows():
+                    t = rv["Toimittaja"]
+                    if t and not t.startswith("("):
+                        rekisteri[t] = {"toimittaja": t, "y_tunnus": rv.get("Y-tunnus",""),
+                                        "yhteyshenkilo": rv.get("Yhteyshenkilö","")}
+                tallenna_globaali("aliurakoitsijarekisteri", list(rekisteri.values()))
+                st.success("Tallennettu — Y-tunnukset muistetaan jatkossa.")
+                st.rerun()
+
+            xlsx = VH.urakkailmoitus_excel(muokattu, _proj, int(u_vuosi), int(u_kk))
+            b2.download_button("⬇️ Lataa Excel", data=xlsx,
+                file_name=f"urakkailmoitus_{int(u_vuosi)}_{int(u_kk):02d}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True)
+            b3.download_button("⬇️ Lataa CSV", data=VH.urakkailmoitus_csv(muokattu),
+                file_name=f"urakkailmoitus_{int(u_vuosi)}_{int(u_kk):02d}.csv",
+                mime="text/csv", use_container_width=True)
+
+            st.caption(f"Yhteensä kaudella: {EURO(muokattu['Summa (alv 0)'].sum())}")
+
+        st.divider()
+        st.caption("ℹ️ Työntekijäilmoitus (ketkä työmaalla) tehdään Tuntikirja-sovelluksessa. "
+                   "Tämä on urakkailmoitus (maksut aliurakoitsijoille).")

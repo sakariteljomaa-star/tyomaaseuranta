@@ -149,3 +149,96 @@ def tyontekijailmoitus_csv(df: pd.DataFrame) -> bytes:
     """CSV (puolipiste-eroteltu, UTF-8 BOM) OmaVeroon/kirjanpitäjälle."""
     nayta = df.drop(columns=["_puuttuu"], errors="ignore")
     return nayta.to_csv(index=False, sep=";").encode("utf-8-sig")
+
+
+# ── VAIHE 3: Urakkailmoitus (maksetut summat aliurakoitsijoille) ───────────────
+
+def poimi_toimittaja(selite: str) -> str:
+    """Yrittää poimia toimittajan nimen ostolaskun selitteestä (best effort)."""
+    import re
+    s = str(selite or "").strip()
+    # Katkaise ennen ", lasku" / " – lasku" / " - lasku"
+    osat = re.split(r"\s*[,–\-]\s*lasku", s, flags=re.IGNORECASE)
+    nimi = osat[0].strip(" –-,")
+    # Jos selite ei sisällä nimeä (esim. "Työ (vko 20)", "Aloitus pvm...", "Lasku 77227 ...")
+    if re.match(r"^(aloitus|lopetus|työ|vko|viikko|lasku)\b", nimi, re.IGNORECASE):
+        return ""
+    return nimi
+
+
+def kokoa_urakkailmoitus(df_ostot, yritysrekisteri: dict,
+                         vuosi: int, kk: int) -> pd.DataFrame:
+    """
+    Kokoaa aliurakoitsijoille kaudella maksetut summat.
+    df_ostot: kustannusseurannan ostolasku-DataFrame (sis. kululaji, summa, pvm, selite).
+    yritysrekisteri: {toimittaja: {"y_tunnus":..., "yhteyshenkilo":...}}
+    """
+    if df_ostot is None or df_ostot.empty:
+        return pd.DataFrame()
+
+    df = df_ostot[df_ostot["kululaji"] == "Aliurakoitsijat"].copy()
+    if df.empty:
+        return pd.DataFrame()
+
+    df["pvm"] = pd.to_datetime(df["pvm"], errors="coerce")
+    df = df[(df["pvm"].dt.year == vuosi) & (df["pvm"].dt.month == kk)]
+    if df.empty:
+        return pd.DataFrame()
+
+    df["toimittaja"] = df["selite"].apply(poimi_toimittaja)
+
+    rivit = []
+    for toimittaja, osa in df.groupby("toimittaja"):
+        reko = yritysrekisteri.get(toimittaja, {})
+        rivit.append({
+            "Toimittaja":     toimittaja or "(tuntematon — täydennä)",
+            "Y-tunnus":       reko.get("y_tunnus", ""),
+            "Yhteyshenkilö":  reko.get("yhteyshenkilo", ""),
+            "Summa (alv 0)":  round(float(osa["summa"].sum()), 2),
+            "Laskuja":        int(osa["lasku"].nunique()) if "lasku" in osa else len(osa),
+        })
+    df_out = pd.DataFrame(rivit).sort_values("Toimittaja").reset_index(drop=True)
+    return df_out
+
+
+def urakkailmoitus_excel(df: pd.DataFrame, projekti_info: dict,
+                         vuosi: int, kk: int) -> bytes:
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    wb = Workbook(); ws = wb.active; ws.title = f"Urakat {kk}-{vuosi}"
+    THIN = Side(style="thin", color="AAAAAA")
+    B = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+
+    ws.merge_cells("A1:E1")
+    c = ws.cell(1, 1, "URAKKAILMOITUS — Verohallinto (rakentamisen tiedonantovelvollisuus)")
+    c.font = Font(bold=True, size=13, color="FFFFFF"); c.fill = PatternFill("solid", fgColor="1F3864")
+    ws.merge_cells("A2:E2")
+    ws.cell(2, 1, f"Työmaa: {projekti_info.get('nimi','')} | "
+                  f"Tilaaja: {projekti_info.get('paatoteuttaja','')} "
+                  f"({projekti_info.get('paatot_ytunnus','')}) | Kausi: {kk:02d}/{vuosi}").font = Font(size=10)
+
+    otsikot = ["Toimittaja","Y-tunnus","Yhteyshenkilö","Summa (alv 0)","Laskuja"]
+    r0 = 4
+    for j, ot in enumerate(otsikot, 1):
+        cc = ws.cell(r0, j, ot); cc.font = Font(bold=True, color="FFFFFF")
+        cc.fill = PatternFill("solid", fgColor="2E75B6"); cc.border = B
+    for i, (_, rv) in enumerate(df.iterrows(), r0 + 1):
+        for j, ot in enumerate(otsikot, 1):
+            cc = ws.cell(i, j, rv.get(ot, "")); cc.border = B; cc.font = Font(size=10)
+            if ot == "Summa (alv 0)":
+                cc.number_format = '#,##0.00'
+            if ot == "Y-tunnus" and not rv.get(ot):
+                cc.fill = PatternFill("solid", fgColor="FFCDD2")
+    # Yhteensä
+    yht_r = r0 + 1 + len(df)
+    ws.cell(yht_r, 3, "YHTEENSÄ").font = Font(bold=True)
+    tot = ws.cell(yht_r, 4, round(float(df["Summa (alv 0)"].sum()), 2) if not df.empty else 0)
+    tot.font = Font(bold=True); tot.number_format = '#,##0.00'
+
+    for col, w in zip("ABCDE", [30, 14, 22, 15, 9]):
+        ws.column_dimensions[col].width = w
+    buf = io.BytesIO(); wb.save(buf); return buf.getvalue()
+
+
+def urakkailmoitus_csv(df: pd.DataFrame) -> bytes:
+    return df.to_csv(index=False, sep=";").encode("utf-8-sig")
