@@ -45,7 +45,7 @@
 | Velvoite | GDPR | Tila | Huomio |
 |---|---|---|---|
 | Oikeusperuste jokaiselle käsittelylle | 6, 9 art. | ✅ | Dokumentoitu tietosuojaselosteessa |
-| Informointi rekisteröidyille | 13, 14 art. | ⚠️ | Seloste päivitetty — **jakelu työntekijöille puuttuu** (T4) |
+| Informointi rekisteröidyille | 13, 14 art. | ✅ | Seloste päivitetty; perehdytysmateriaali (fi/ru) + aliurakkasopimuksen liite valmiina — jakelu käynnistyy perehdytyksissä (T4) |
 | Käsittelytoimien seloste | 30 art. | ✅ | `KASITTELYTOIMET.md` (KT1–KT8) |
 | Tietoturva | 32 art. | ✅ | PBKDF2, RLS, roolit, loki, HTTPS |
 | Käsittelysopimukset (DPA) | 28 art. | ⚠️ | Supabase/Streamlit/Google DPA:t **varmistamatta** (T1) |
@@ -82,6 +82,8 @@ Tiedot jäävät järjestelmään säilytysajan jälkeenkin, ellei niitä poiste
 ### R5 — Aliurakoitsijan toimittamat tiedot 🟡
 Päätoteuttaja saa aliurakoitsijan työntekijöiden tiedot työnantajalta. Työntekijöitä
 on informoitava (14 art.) — käytännössä aliurakkasopimuksessa ja perehdytyksessä.
+**Lievennys 15.10.2026:** tietosuojailmoitus + tietolomake tuntikirjassa, sopimusliite
+`PEREHDYTYSOHJE_TIETOSUOJA.md` kohdassa 4.
 
 ### R6 — Sähköpostin käyttö raporteissa 🟡
 Asbesti-appi lähettää raportteja Gmailin kautta. Raportit eivät sisällä veronumeroita,
@@ -96,7 +98,7 @@ mutta voivat sisältää nimiä ja kuvia.
 | **T1** | **Selvitä Streamlit/Snowflaken DPA ja siirtoperuste** — onko Snowflake DPF-sertifioitu, kattaako DPA Community Cloudin, salliiko Community Cloudin käyttöehto henkilötiedot. Tarkista samalla Supabasen ja Googlen DPA:t. Jos ei kattavaa perustetta → EU-hostaus. | 🔴 Korkea | Sakari | ⏳ Kesken |
 | **T2** | Laadi **käsittelytoimien seloste** (30 art.) — voi pohjautua tämän dokumentin kohtaan 2 | 🔴 Korkea | Sakari / Claude | ✅ 15.10.2026 |
 | **T3** | **Rajaa Pätevyydet-välilehti** vain työnjohdolle (admin + työnjohtaja), piilota katselijalta. Nimeä terveystietoja käsittelevät henkilöt. | 🔴 Korkea | Claude (koodi) | ✅ 15.10.2026 |
-| **T4** | **Informoi työntekijät** — lyhyt tietosuojailmoitus perehdytykseen ja aliurakkasopimuksiin (liite: "päätoteuttaja käsittelee työntekijöidenne tietoja lakisääteisiin ilmoituksiin") | 🟠 Keskitaso | Sakari | ☐ |
+| **T4** | **Informoi työntekijät** — lyhyt tietosuojailmoitus perehdytykseen ja aliurakkasopimuksiin (liite: "päätoteuttaja käsittelee työntekijöidenne tietoja lakisääteisiin ilmoituksiin") | 🟠 Keskitaso | Claude (materiaali) / Sakari (jakelu) | ✅ materiaali 15.10.2026 — Tuntikirja → Viranomaisilmoitukset, ohje `PEREHDYTYSOHJE_TIETOSUOJA.md` |
 | **T5** | Laadi **tietoturvaloukkauksen toimintamalli**: kuka tekee mitä, ilmoitus Tietosuojavaltuutetulle 72 h kuluessa | 🟠 Keskitaso | Sakari | ☐ |
 | **T6** | **Automaattinen poisto/anonymisointi** säilytysaikojen mukaan (esim. ylläpitotoiminto adminille) | 🟡 Matala | Claude (koodi) | ☐ |
 | **T7** | **Henkilön tietojen vienti** tarkastuspyyntöjä varten (admin: "vie kaikki henkilön X tiedot") | 🟡 Matala | Claude (koodi) | ☐ |

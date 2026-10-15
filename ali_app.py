@@ -1126,4 +1126,23 @@ if tab_viranomainen is not None:
         st.divider()
         st.caption("ℹ️ Ilmoitus annetaan Verohallinnolle kuukausittain (OmaVero tai "
                    "Ilmoitin.fi). Tämä lista sisältää vaaditut kentät. Urakkailmoitus "
-                   "(maksetut summat aliurakoitsijoille) hoidetaan kustannusseurannasta — tulossa.")
+                   "(maksetut summat aliurakoitsijoille) tehdään kustannusseurannassa.")
+
+        # ── Perehdytysmateriaali: tietosuojailmoitus + tietolomake (GDPR 13/14 art.) ──
+        st.divider()
+        st.subheader("📄 Perehdytysmateriaali (tietosuoja)")
+        st.caption("Anna jokaiselle työmaalle tulevalle työntekijälle tietosuojailmoitus ja pyydä täyttämään "
+                   "tietolomake perehdytyksessä. Lomakkeet on esitäytetty tämän työmaan tiedoilla. "
+                   "Ohje: PEREHDYTYSOHJE_TIETOSUOJA.md.")
+        import perehdytys_dokumentit as PD
+        _slug = _projekti_slug(projekti)
+        pm1, pm2, pm3 = st.columns(3)
+        pm1.download_button("⬇️ Perehdytyspaketti", data=PD.luo_perehdytyspaketti(_proj or {"nimi": projekti}),
+            file_name=f"perehdytyspaketti_{_slug}.pdf", mime="application/pdf", width="stretch",
+            help="Tietosuojailmoitus suomeksi ja venäjäksi + tietolomake (3 sivua)")
+        pm2.download_button("⬇️ Tietosuojailmoitus (fi + ru)", data=PD.luo_tietosuojailmoitus(_proj or {"nimi": projekti}),
+            file_name=f"tietosuojailmoitus_{_slug}.pdf", mime="application/pdf", width="stretch")
+        _kpl = pm3.number_input("Lomakkeita (kpl)", min_value=1, max_value=50, value=10, step=1, key="pm_kpl")
+        pm3.download_button(f"⬇️ Tietolomakkeet ×{int(_kpl)}",
+            data=PD.luo_tietolomakkeet(_proj or {"nimi": projekti}, int(_kpl)),
+            file_name=f"tietolomakkeet_{_slug}.pdf", mime="application/pdf", width="stretch")

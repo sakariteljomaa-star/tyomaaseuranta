@@ -44,6 +44,8 @@ Riippuvuudet: `pip install -r requirements.txt`
 | `app.py`             | Kustannusseuranta-UI (10 välilehteä + Käyttäjät adminille)    |
 | `ali_app.py`         | Tuntikirja-UI (roolien mukaiset välilehdet, 2 kieltä) + Viranomaisilmoitukset |
 | `verohallinto.py`    | Päätoteuttajan työntekijäilmoitus (Verohallinto): kokoaa kuukauden työmaalla olleet tuntikirjauksista + tekijöiden viranomaistiedot → Excel/CSV |
+| `perehdytys_dokumentit.py` | Työntekijän tietosuojailmoitus (fi/ru) + kaksikielinen tietolomake PDF:nä, esitäytetty työmaan tiedoilla (Tuntikirja → Viranomaisilmoitukset) |
+| `fonts/`             | DejaVu Sans (vapaa lisenssi) — kyrilliset merkit reportlab-PDF:iin. Älä korvaa Arialilla (ei saa jakaa) |
 | `kalusto_app.py`     | Kalustoseuranta-UI + julkinen QR-skannausnäkymä              |
 | `asbesti_app.py`     | Asbestikohteet-UI: Cateva-kohteet, tilakone, dokumentointi   |
 | `asbesti_dokumentit.py`| Turvallisuussuunnitelma-, ennakkoilmoitus-, raportti- ja tarjous-PDF:t (reportlab + pypdf) |
@@ -223,3 +225,5 @@ password = "...(Gmailin sovellussalasana)..."
   (verodata 6 v). Järjestelmä on henkilörekisteri. Asbestin pätevyystiedot (terveystarkastus)
   ovat erityisiä henkilötietoja: vain `on_tj`-roolit, katselijalle ei ladata (`asbesti_app.py`).
   Uusia henkilötietokenttiä lisättäessä päivitä myös KASITTELYTOIMET.md.
+  Työntekijöiden informointi ja perehdytys: `PEREHDYTYSOHJE_TIETOSUOJA.md`. Jos käsiteltävät
+  tiedot muuttuvat, päivitä myös `perehdytys_dokumentit.py`:n ilmoitusteksti (fi + ru).
