@@ -725,96 +725,97 @@ with tab_vkoyht:
 # ══════════════════════════════════════════════════════════════════════════════
 # TEKIJÄLISTA — aliurakoitsijoiden hallinta
 # ══════════════════════════════════════════════════════════════════════════════
-with tab_tekijat:
-    st.subheader(tr("tab_tekijat", kieli))
-    st.caption(tr("tekijat_ohje", kieli))
+if tab_tekijat is not None:
+    with tab_tekijat:
+        st.subheader(tr("tab_tekijat", kieli))
+        st.caption(tr("tekijat_ohje", kieli))
 
-    # Näytä nykyinen lista
-    if tyontekijat_lista:
-        df_tek = pd.DataFrame(tyontekijat_lista)
-        naytto_cols = ["nimi","yritys","ammattinimike","laskutustapa","tuntihinta","kiintea_hinta"]
-        naytto_cols = [c for c in naytto_cols if c in df_tek.columns]
-        naytto = df_tek[naytto_cols].copy()
-        naytto.columns = [c.replace("_"," ").title() for c in naytto_cols]
-        st.dataframe(naytto, use_container_width=True, hide_index=True)
-        st.divider()
+        # Näytä nykyinen lista
+        if tyontekijat_lista:
+            df_tek = pd.DataFrame(tyontekijat_lista)
+            naytto_cols = ["nimi","yritys","ammattinimike","laskutustapa","tuntihinta","kiintea_hinta"]
+            naytto_cols = [c for c in naytto_cols if c in df_tek.columns]
+            naytto = df_tek[naytto_cols].copy()
+            naytto.columns = [c.replace("_"," ").title() for c in naytto_cols]
+            st.dataframe(naytto, use_container_width=True, hide_index=True)
+            st.divider()
 
-    # Lisää uusi
-    with st.expander(tr("lisaa_tekija", kieli), expanded=len(tyontekijat_lista)==0):
-        t1, t2 = st.columns(2)
-        t_nimi  = t1.text_input(tr("nimi", kieli), key="t_nimi")
-        t_yrit  = t1.text_input(tr("yritys", kieli), key="t_yrit")
+        # Lisää uusi
+        with st.expander(tr("lisaa_tekija", kieli), expanded=len(tyontekijat_lista)==0):
+            t1, t2 = st.columns(2)
+            t_nimi  = t1.text_input(tr("nimi", kieli), key="t_nimi")
+            t_yrit  = t1.text_input(tr("yritys", kieli), key="t_yrit")
 
-        # Ammattinimike — täyttää tuntihinnan automaattisesti
-        nimike_lista = [n["nimike"] for n in ammattinimikkeet] + ["— Muu —"]
-        t_nimike = t1.selectbox("Ammattinimike", nimike_lista, key="t_nimike")
-        if t_nimike != "— Muu —":
-            nimike_info = next((n for n in ammattinimikkeet if n["nimike"] == t_nimike), {})
-            t1.caption(f"{nimike_info.get('kuvaus','')}  |  {nimike_info.get('tuntihinta',0):.0f} €/h")
+            # Ammattinimike — täyttää tuntihinnan automaattisesti
+            nimike_lista = [n["nimike"] for n in ammattinimikkeet] + ["— Muu —"]
+            t_nimike = t1.selectbox("Ammattinimike", nimike_lista, key="t_nimike")
+            if t_nimike != "— Muu —":
+                nimike_info = next((n for n in ammattinimikkeet if n["nimike"] == t_nimike), {})
+                t1.caption(f"{nimike_info.get('kuvaus','')}  |  {nimike_info.get('tuntihinta',0):.0f} €/h")
 
-        t_lp = t2.selectbox(tr("laskutustapa", kieli), LASK_TAVAT, key="t_lp")
-        t_th, t_kh = None, None
-        if t_lp == LASK_TAVAT[1]:
-            oletus_th = _nimike_hinnat.get(t_nimike, 38.0) if t_nimike != "— Muu —" else 38.0
-            t_th = t2.number_input("€/h", 0.0, step=0.5, value=oletus_th, key="t_th")
-        elif t_lp == LASK_TAVAT[2]:
-            t_kh = t2.number_input(tr("kiintea_hinta", kieli), 0.0, step=10.0, key="t_kh")
+            t_lp = t2.selectbox(tr("laskutustapa", kieli), LASK_TAVAT, key="t_lp")
+            t_th, t_kh = None, None
+            if t_lp == LASK_TAVAT[1]:
+                oletus_th = _nimike_hinnat.get(t_nimike, 38.0) if t_nimike != "— Muu —" else 38.0
+                t_th = t2.number_input("€/h", 0.0, step=0.5, value=oletus_th, key="t_th")
+            elif t_lp == LASK_TAVAT[2]:
+                t_kh = t2.number_input(tr("kiintea_hinta", kieli), 0.0, step=10.0, key="t_kh")
 
-        # ── Viranomaistiedot (Verohallinnon työntekijäilmoitus) ────────────────
-        st.markdown("**🏛️ Viranomaistiedot** (pakolliset Verohallinnon ilmoitukseen)")
-        v1, v2, v3 = st.columns(3)
-        t_veronro = v1.text_input("Veronumero (12 num.)", max_chars=12, key="t_veronro")
-        t_syntyma = v1.text_input("Syntymäaika (pp.kk.vvvv)", placeholder="01.01.1990", key="t_syntyma")
-        t_ytunnus = v2.text_input("Työnantajan Y-tunnus", placeholder="1234567-8", key="t_ytunnus")
-        t_tyosuhde = v2.selectbox("Työsuhteen laji",
-            ["Työsuhteinen", "Vuokratyöntekijä", "Itsenäinen ammatinharjoittaja", "Harjoittelija"],
-            key="t_tyosuhde")
-        t_kansalaisuus = v3.text_input("Kansalaisuus", value="Suomi", key="t_kansalaisuus")
-        t_laheva = v3.text_input("Lähettävä yritys (jos ulkom.)", key="t_laheva")
-        v4, v5 = st.columns(2)
-        t_osoite = v4.text_input("Osoite (vapaaehtoinen)", key="t_osoite")
-        t_puhelin = v5.text_input("Puhelin (vapaaehtoinen)", key="t_puhelin")
+            # ── Viranomaistiedot (Verohallinnon työntekijäilmoitus) ────────────────
+            st.markdown("**🏛️ Viranomaistiedot** (pakolliset Verohallinnon ilmoitukseen)")
+            v1, v2, v3 = st.columns(3)
+            t_veronro = v1.text_input("Veronumero (12 num.)", max_chars=12, key="t_veronro")
+            t_syntyma = v1.text_input("Syntymäaika (pp.kk.vvvv)", placeholder="01.01.1990", key="t_syntyma")
+            t_ytunnus = v2.text_input("Työnantajan Y-tunnus", placeholder="1234567-8", key="t_ytunnus")
+            t_tyosuhde = v2.selectbox("Työsuhteen laji",
+                ["Työsuhteinen", "Vuokratyöntekijä", "Itsenäinen ammatinharjoittaja", "Harjoittelija"],
+                key="t_tyosuhde")
+            t_kansalaisuus = v3.text_input("Kansalaisuus", value="Suomi", key="t_kansalaisuus")
+            t_laheva = v3.text_input("Lähettävä yritys (jos ulkom.)", key="t_laheva")
+            v4, v5 = st.columns(2)
+            t_osoite = v4.text_input("Osoite (vapaaehtoinen)", key="t_osoite")
+            t_puhelin = v5.text_input("Puhelin (vapaaehtoinen)", key="t_puhelin")
 
-        if st.button(tr("lisaa", kieli), type="primary", key="t_lisaa"):
-            if not t_nimi:
-                st.error(tr("syota_nimi", kieli))
-            elif any(tk["nimi"] == t_nimi for tk in tyontekijat_lista):
-                st.warning(f"{t_nimi} {tr('jo_listalla', kieli)}")
-            elif t_veronro and (not t_veronro.isdigit() or len(t_veronro) != 12):
-                st.error("Veronumero on 12 numeroa.")
-            else:
-                lm = {LASK_TAVAT[0]:"tunnit", LASK_TAVAT[1]:"tuntihinta", LASK_TAVAT[2]:"kiintea"}
-                tyontekijat_lista.append({
-                    "nimi":          t_nimi,
-                    "yritys":        t_yrit,
-                    "ammattinimike": t_nimike if t_nimike != "— Muu —" else "",
-                    "laskutustapa":  lm.get(t_lp, "tunnit"),
-                    "tuntihinta":    t_th,
-                    "kiintea_hinta": t_kh,
-                    # Viranomaistiedot (Verohallinto)
-                    "veronumero":    t_veronro,
-                    "syntymaaika":   t_syntyma,
-                    "y_tunnus":      t_ytunnus,
-                    "tyosuhde":      t_tyosuhde,
-                    "kansalaisuus":  t_kansalaisuus,
-                    "laheva_yritys": t_laheva,
-                    "osoite":        t_osoite,
-                    "puhelin":       t_puhelin,
-                })
-                _tallenna_tyontekijat(tyontekijat_lista)
-                puuttuu = [] if (t_veronro and t_syntyma and t_ytunnus) else ["⚠️ viranomaistietoja puuttuu"]
-                st.success(f"✅ {t_nimi} ({t_nimike}) {' '.join(puuttuu)}")
-                st.rerun()
+            if st.button(tr("lisaa", kieli), type="primary", key="t_lisaa"):
+                if not t_nimi:
+                    st.error(tr("syota_nimi", kieli))
+                elif any(tk["nimi"] == t_nimi for tk in tyontekijat_lista):
+                    st.warning(f"{t_nimi} {tr('jo_listalla', kieli)}")
+                elif t_veronro and (not t_veronro.isdigit() or len(t_veronro) != 12):
+                    st.error("Veronumero on 12 numeroa.")
+                else:
+                    lm = {LASK_TAVAT[0]:"tunnit", LASK_TAVAT[1]:"tuntihinta", LASK_TAVAT[2]:"kiintea"}
+                    tyontekijat_lista.append({
+                        "nimi":          t_nimi,
+                        "yritys":        t_yrit,
+                        "ammattinimike": t_nimike if t_nimike != "— Muu —" else "",
+                        "laskutustapa":  lm.get(t_lp, "tunnit"),
+                        "tuntihinta":    t_th,
+                        "kiintea_hinta": t_kh,
+                        # Viranomaistiedot (Verohallinto)
+                        "veronumero":    t_veronro,
+                        "syntymaaika":   t_syntyma,
+                        "y_tunnus":      t_ytunnus,
+                        "tyosuhde":      t_tyosuhde,
+                        "kansalaisuus":  t_kansalaisuus,
+                        "laheva_yritys": t_laheva,
+                        "osoite":        t_osoite,
+                        "puhelin":       t_puhelin,
+                    })
+                    _tallenna_tyontekijat(tyontekijat_lista)
+                    puuttuu = [] if (t_veronro and t_syntyma and t_ytunnus) else ["⚠️ viranomaistietoja puuttuu"]
+                    st.success(f"✅ {t_nimi} ({t_nimike}) {' '.join(puuttuu)}")
+                    st.rerun()
 
-    # Poista listalta
-    if tyontekijat_lista:
-        with st.expander(tr("poista_tekija", kieli)):
-            nimet_p = [tk["nimi"] for tk in tyontekijat_lista]
-            poistettava = st.selectbox(tr("tekija", kieli), nimet_p, key="t_poisto")
-            if st.button(tr("poista_listalta", kieli), type="secondary", key="t_poista"):
-                tyontekijat_lista = [tk for tk in tyontekijat_lista if tk["nimi"] != poistettava]
-                _tallenna_tyontekijat(tyontekijat_lista)
-                st.rerun()
+        # Poista listalta
+        if tyontekijat_lista:
+            with st.expander(tr("poista_tekija", kieli)):
+                nimet_p = [tk["nimi"] for tk in tyontekijat_lista]
+                poistettava = st.selectbox(tr("tekija", kieli), nimet_p, key="t_poisto")
+                if st.button(tr("poista_listalta", kieli), type="secondary", key="t_poista"):
+                    tyontekijat_lista = [tk for tk in tyontekijat_lista if tk["nimi"] != poistettava]
+                    _tallenna_tyontekijat(tyontekijat_lista)
+                    st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PROJEKTIT (vain työnjohtaja)
