@@ -4,12 +4,14 @@ Osoite: **uap-asbesti.streamlit.app** · Kirjaudu samoilla tunnuksilla kuin muih
 Kohteen tila näkyy värillisenä merkkinä ja etenee itsestään:
 Uusi → Ilmoitukset tehty → Työ käynnissä → Purku valmis → Mittaukset ja jäte ok → Raportti lähetetty.
 
-## 1. Uusi työ Catevalta → luo kohde
+## 1. Uusi työ → luo kohde
 
 **Kohteet-välilehti → Lisää kohde.**
-- **Työnumero** = Catevan yksilöintiviite (löytyy tilauksesta tai kartoitusraportin
-  tiedostonimen alusta, esim. 6573160). Pakollinen — kaikki kuvat, dokumentit ja
+- **Työnumero** = tilaajan viite tai oma juokseva numero (esim. tilauksesta tai
+  kartoitusraportin tiedostonimestä). Pakollinen — kaikki kuvat, dokumentit ja
   sähköpostit kulkevat sen alla.
+- **Tilaaja:** valitse aiempi tilaaja listasta (tiedot täyttyvät) tai kirjoita uusi.
+  **Sähköposti on tärkeä** — tarjoukset ja raportit lähetetään siihen.
 - Osoite, kunta, suunniteltu aloitus ja lopetus, työntekijät (he näkevät kohteen
   puhelimellaan heti), kuvaus = kartoituksen löydökset.
 
@@ -40,7 +42,7 @@ automaattisesti "Työ käynnissä" — sinun ei tarvitse tehdä mitään.
 
 ## 4. Puhdastilamittaus ja jätetodistus
 
-- **OmaLabroc-tilaukseen kohteen nimeksi AINA Catevan työnumero** — silloin tulos
+- **OmaLabroc-tilaukseen kohteen nimeksi AINA kohteen työnumero** — silloin tulos
   kohdistuu automaattisesti oikeaan kohteeseen.
 - **Labroc-tulokset-välilehti → Hae uudet tulokset** → tarkista ja tallenna
   kohteelle. 🟢 = hyväksytty (≤ 0,01 kuitua/cm³), 🔴 = hylätty, 🟠 = tarkista käsin.
@@ -52,9 +54,11 @@ automaattisesti "Työ käynnissä" — sinun ei tarvitse tehdä mitään.
 **Raportti-välilehti**, valitse kohde.
 - Appi näyttää puutelistan — raporttia ei voi koota ennen kuin kaikki on koossa.
 - **Kokoa aloitus- ja lopetusraportti (PDF)** → **lataa ja tarkista** (kuvat,
-  tekstit, liitteet) → ruksi "Olen esikatsellut" → **Lähetä Catevalle**.
-- Lähetys menee ensivaiheessa osoitteeseen info@uudenmaanasbestipurku.fi
-  tarkistettavaksi — välitä sieltä Catevalle kun raportti on kunnossa.
+  tekstit, liitteet) → ruksi "Olen esikatsellut" → **Lähetä tilaajalle**.
+- Jos tarkistustila on päällä (Secrets `[smtp] tarkistusosoite`), viesti menee ensin
+  osoitteeseen info@uudenmaanasbestipurku.fi otsikolla *[TARKISTUS → tilaajan osoite]*
+  — välitä sieltä tilaajalle. Ilman tarkistustilaa viesti menee suoraan tilaajalle ja
+  kopio omaan postilaatikkoon.
 
 ## 6. Pidä kunnossa
 

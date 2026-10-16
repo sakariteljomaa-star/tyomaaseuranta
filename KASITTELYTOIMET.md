@@ -116,7 +116,7 @@ vakiosopimuslausekkeet (SCC). **Tila:** varmistettavana, toimenpide T1.
 
 | | |
 |---|---|
-| **Tarkoitus** | Asbestipurkutyön lakisääteinen dokumentointi ja raportointi tilaajalle (Cateva) |
+| **Tarkoitus** | Asbestipurkutyön lakisääteinen dokumentointi ja raportointi tilaajalle |
 | **Oikeusperuste** | 6.1 c lakisääteinen velvoite (asbestityön dokumentointi); 6.1 b sopimus (tilaajaraportointi) |
 | **Rekisteröidyt** | Työntekijät, tilaajan yhteyshenkilöt; kuvissa mahdollisesti näkyvät henkilöt |
 | **Tietoryhmät** | Nimi, kuittausmerkinnät aikaleimoineen, työmaakuvat, yhteyshenkilöiden nimi, puhelin ja sähköposti |

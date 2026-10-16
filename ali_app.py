@@ -89,7 +89,7 @@ def _hae_projektit() -> list:
 _LOGO = str(Path(__file__).parent / "logo.png")
 _FAVI = str(Path(__file__).parent / "favicon.png")
 st.set_page_config(
-    page_title="Ali-tuntikirja",
+    page_title="Tuntikirja",
     page_icon=_FAVI if Path(_FAVI).exists() else "👷",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -108,7 +108,7 @@ import auth as A
 def _luo_koodi(pituus=6):
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=pituus))
 
-kayttaja = A.kirjaudu_gate("Aliurakoitsijoiden tuntikirja")
+kayttaja = A.kirjaudu_gate("Työmaan tuntikirja")
 rooli    = kayttaja["rooli"]
 on_tj    = A.voi_hyvaksya(rooli)          # admin + työnjohtaja
 on_admin = A.voi_hallita_kayttajia(rooli)  # vain admin

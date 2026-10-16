@@ -14,9 +14,9 @@ tallennus ja käyttäjähallinta:
 | Sovellus | Tiedosto | Tarkoitus | Käyttäjät |
 |----------|----------|-----------|-----------|
 | 💰 **Kustannusseuranta** | `app.py` | Netvisor-viennit → kustannusseuranta-Excel | työnjohto, kirjanpito |
-| 👷 **Tuntikirja** | `ali_app.py` | Aliurakoitsijoiden tuntien kirjaus + hyväksyntä | työnjohto, työntekijät |
+| 👷 **Tuntikirja** | `ali_app.py` | Työmaan tuntikirja: omat + aliurakoitsijoiden tunnit, hyväksyntä, viranomaisilmoitukset | työnjohto, työntekijät |
 | 🔧 **Kalustoseuranta** | `kalusto_app.py` | QR-pohjainen laitekirjanpito | kaikki työmaalla |
-| ☣️ **Asbestikohteet** | `asbesti_app.py` | Cateva-aliurakoiden dokumentointi ja raportit | työnjohto, työntekijät |
+| ☣️ **Asbestikohteet** | `asbesti_app.py` | Asbestipurkukohteiden tarjoukset, dokumentointi ja raportit (tilaaja kohdekohtainen) | työnjohto, työntekijät |
 
 Yritys: Uudenmaan Asbestipurku Oy / Uudenmaan Vahinkopalvelu Oy (Y-tunnus 2817254-1).
 Toiminta: asbestipurku, vahinkosaneeraus, rakentamisen aliurakointi.
@@ -29,7 +29,7 @@ Tmi ST Konsultti (Y-tunnus 3376518-1) = työnjohtopalvelut, oma toiminimi.
 python3 -m streamlit run app.py          --server.port 8501   # Kustannusseuranta
 python3 -m streamlit run ali_app.py      --server.port 8502   # Tuntikirja
 python3 -m streamlit run kalusto_app.py  --server.port 8503   # Kalustoseuranta
-python3 -m streamlit run asbesti_app.py  --server.port 8504   # Asbestikohteet (Cateva)
+python3 -m streamlit run asbesti_app.py  --server.port 8504   # Asbestikohteet
 ```
 
 Riippuvuudet: `pip install -r requirements.txt`
@@ -47,9 +47,9 @@ Riippuvuudet: `pip install -r requirements.txt`
 | `perehdytys_dokumentit.py` | Työntekijän tietosuojailmoitus (fi/ru) + kaksikielinen tietolomake PDF:nä, esitäytetty työmaan tiedoilla (Tuntikirja → Viranomaisilmoitukset) |
 | `fonts/`             | DejaVu Sans (vapaa lisenssi) — kyrilliset merkit reportlab-PDF:iin. Älä korvaa Arialilla (ei saa jakaa) |
 | `kalusto_app.py`     | Kalustoseuranta-UI + julkinen QR-skannausnäkymä              |
-| `asbesti_app.py`     | Asbestikohteet-UI: Cateva-kohteet, tilakone, dokumentointi   |
+| `asbesti_app.py`     | Asbestikohteet-UI: kohteet + tilaaja, tilakone, dokumentointi |
 | `asbesti_dokumentit.py`| Turvallisuussuunnitelma-, ennakkoilmoitus-, raportti- ja tarjous-PDF:t (reportlab + pypdf) |
-| `tarjouslaskenta.py` | Cateva-tarjoukset: hinnasto, vakiopaketti, kartoitus-PDF:n tulkinta |
+| `tarjouslaskenta.py` | Asbestitarjoukset: hinnasto, vakiopaketti, kartoitus-PDF:n tulkinta |
 | `labroc_nouto.py`    | Labroc-tulosten IMAP-nouto ja PDF-tulkinta                   |
 | `auth.py`            | Käyttäjähallinta, roolit, PBKDF2-salasanat (YHTEINEN)        |
 | `parser.py`          | Netvisor ostolaskut (laskentakohderaportti) → DataFrame      |
@@ -102,7 +102,7 @@ Luokittelu tehdään ensisijaisesti **toimittajan nimen + ALV-tunnuksen** perust
 - Palkkakerroin (brutto × kerroin): oletus **1,5** (toteuttava porras 1,6–1,7,
   toimihenkilöt 1,3–1,4)
 - Aliurakoitsijalaskut: ALV 0 %, **ei** sivukulukerrointa.
-- **Cateva-tarjoushinnoittelu** (tarjouslaskenta.py, muokattavissa appin hinnastossa):
+- **Asbestitarjousten hinnoittelu** (tarjouslaskenta.py, muokattavissa appin hinnastossa):
   vastaanotto+ennakkoilmoitus 250 € · osastointi ja suojaukset (sis. alipaineistus-
   laitteet) 350 € · purkutyö 55 €/h (min. 4 h) · loppumittaus+dokumentointi 175 € ·
   jäte min. 90 € · pk-kulut 25 € · matkat 1 €/km · **minimiveloitus 1 000 €** ·
@@ -173,7 +173,10 @@ labroc_kasitellyt).
 hallintapaneelissa: Storage → New bucket → nimi `tyomaakuvat` → **Private**.
 Secret-avain ohittaa Storage-RLS:n, policyjä ei tarvita. Paikallisesti tiedostot
 menevät `data/kuvat/`-kansioon. Polkukäytäntö: `<työnumero>/<vaihe>/<aikaleima>.jpg`.
-Cateva-dokumenttien kenttärakenteet: ks. `CATEVA_DOKUMENTTIPOHJAT.md`.
+Asbestidokumenttien kenttärakenteet: ks. `CATEVA_DOKUMENTTIPOHJAT.md` (nimi historiallinen).
+**Cateva-yhteistyö on päättynyt.** Tilaaja syötetään kohteelle/tarjoukselle (`TILAAJA_KENTAT`),
+sähköpostit menevät tilaajan osoitteeseen. Tallennusavaimet `cateva_kohteet`, `cateva_tarjoukset`,
+`cateva_<nro>` ovat historiallisia — ÄLÄ nimeä uudelleen ilman datan siirtoa.
 
 **TÄRKEÄ — Supabase-avain:** käytä **secret-avainta** (`sb_secret_...` tai legacy
 `service_role`), EI publishable-avainta. Secret-avain ohittaa RLS:n ja toimii
@@ -226,7 +229,9 @@ host = "smtp.gmail.com"
 port = 465
 user = "info@uudenmaanasbestipurku.fi"
 password = "...(Gmailin sovellussalasana)..."
-cateva_vastaanottaja = "...@cateva.fi"
+tarkistusosoite = "info@uudenmaanasbestipurku.fi"  # valinnainen: viestit ensin tänne
+                                             # tarkistettaviksi (vanha nimi cateva_vastaanottaja
+                                             # toimii samoin). Ilman → suoraan tilaajalle + Bcc user
 
 [labroc_email]                               # vain asbesti_app.py (tulosten nouto)
 host = "imap.gmail.com"

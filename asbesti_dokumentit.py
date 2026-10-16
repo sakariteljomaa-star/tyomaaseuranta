@@ -1,5 +1,5 @@
 """
-Asbestityön dokumenttien PDF-generointi (Cateva-yhteistyö).
+Asbestityön dokumenttien PDF-generointi.
 
 Kolme dokumenttia, rakenteet tiedostosta CATEVA_DOKUMENTTIPOHJAT.md:
   1. Asbestipurkutyön turvallisuussuunnitelma (osiot Perustiedot + 1–7)
@@ -455,7 +455,7 @@ def luo_tarjous_pdf(tiedot: dict, rivit: list, valisumma: float,
     e.append(Paragraph(otsake, S_KOHDE))
     e.append(Paragraph(tiedot.get("pvm", ""), S_PVM))
 
-    e.append(_kentat([("Tilaaja", tiedot.get("tilaaja_yritys", "Cateva Oy")),
+    e.append(_kentat([("Tilaaja", tiedot.get("tilaaja_yritys", "")),
                       ("Kohde", tiedot.get("osoite", ""))]))
 
     if tiedot.get("saate"):
@@ -504,7 +504,7 @@ def luo_tarjous_pdf(tiedot: dict, rivit: list, valisumma: float,
         "(työntekijä 55 €/h, työnjohto 75 €/h, ALV 0 %).",
     ]
     if tiedot.get("kartoitus_viite"):
-        ehdot.append(f"Tarjous perustuu Catevan kartoitusraporttiin {tiedot['kartoitus_viite']} "
+        ehdot.append(f"Tarjous perustuu kartoitusraporttiin {tiedot['kartoitus_viite']} "
                      "ja toimitettuihin valokuviin purkualuerajauksineen.")
     for rivi in ehdot:
         e.append(Paragraph("•  " + rivi, S_TEKSTI))

@@ -160,7 +160,7 @@ def hae_uudet_tulokset(host: str, user: str, password: str, kansio: str = "INBOX
 
 def kohdista_kohteeseen(tulos: dict, parsittu: dict, kohteet: list):
     """
-    Yrittää kohdistaa tuloksen Cateva-kohteeseen.
+    Yrittää kohdistaa tuloksen asbestikohteeseen.
     Ensisijaisesti työnumerolla (aihe/tiedostonimi/PDF:n kohde), toissijaisesti
     osoitteella. Palauttaa kohteen dictin tai None.
     """

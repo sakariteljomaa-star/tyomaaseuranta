@@ -4,7 +4,7 @@ Käännökset: suomi (fi) ja venäjä (ru)
 
 KAANNOKSET = {
     # ── Sovelluksen otsikko ───────────────────────────────────────────────────
-    "app_title":        {"fi": "Aliurakoitsijoiden tuntikirja",      "ru": "Табель учёта рабочего времени субподрядчиков"},
+    "app_title":        {"fi": "Työmaan tuntikirja",                 "ru": "Табель учёта рабочего времени на объекте"},
     "app_caption":      {"fi": "Uudenmaan Asbestipurku Oy",          "ru": "Uudenmaan Asbestipurku Oy"},
 
     # ── Sivupalkki ────────────────────────────────────────────────────────────

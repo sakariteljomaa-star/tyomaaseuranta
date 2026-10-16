@@ -1,5 +1,5 @@
 """
-Tarjouslaskenta Cateva-kohteille.
+Tarjouslaskenta asbestipurkukohteille.
 
 Periaate: tarjous lasketaan AINA samalla tavalla — vakiopaketti hinnastosta +
 tapauskohtaiset rivit. Summaa verrataan minimiveloitukseen (1 000 €), ja
@@ -73,10 +73,11 @@ def laske_summat(rivit: list, minimiveloitus: float):
     return ulos, valisumma, round(loppusumma, 2), minimi_kaytossa
 
 
-def parsi_cateva_kartoitus(data: bytes, tiedostonimi: str = "") -> dict:
+def parsi_kartoitus(data: bytes, tiedostonimi: str = "") -> dict:
     """
-    Poimii Catevan asbesti- ja haitta-ainekartoitusraportista laskennan
-    lähtötiedot. Sietää puuttuvia kenttiä — palauttaa mitä irti saa.
+    Poimii asbesti- ja haitta-ainekartoitusraportista laskennan
+    lähtötiedot. Tulkinta tehty Catevan raporttipohjan mukaan; muista pohjista saadaan
+    yleensä vain osa kentistä. Sietää puuttuvia kenttiä — palauttaa mitä irti saa.
     """
     tulos = {"tyonumero": "", "kohde": "", "osoite": "", "tilaaja": "",
              "kartoittaja": "", "kartoitus_pvm": "", "materiaalit": [],

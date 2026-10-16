@@ -1,15 +1,15 @@
 """
-Asbestikohteet (Cateva) — aliurakkakohteiden hallinta ja dokumentointi
+Asbestikohteet — asbestipurkukohteiden hallinta ja dokumentointi
 Uudenmaan Asbestipurku Oy
 
 Käynnistys:
     python3 -m streamlit run asbesti_app.py --server.port 8504
 
-Työnkulku (ks. CATEVA_DOKUMENTTIPOHJAT.md):
-    Cateva tilaa (työnumero) → kohde järjestelmään → turvallisuussuunnitelma +
+Työnkulku (dokumenttirakenteet: CATEVA_DOKUMENTTIPOHJAT.md):
+    tilaaja tilaa (työnumero) → kohde järjestelmään → turvallisuussuunnitelma +
     ennakkoilmoituksen esitäyttö AVIin → työmaan aloitus-/lopetusdokumentointi
     puhelimella → puhdastilamittaus (Labroc) + jätetodistus → aloitus- ja
-    lopetusraportti PDF → lähetys Catevalle.
+    lopetusraportti PDF → lähetys tilaajalle.
 """
 
 import io
@@ -49,11 +49,50 @@ ALOITUS_KOHDAT = [
     ("kalusto",       "asb_kalusto"),
 ]
 
-CATEVA_OLETUS = {
-    "tilaaja_yritys":        "Cateva Oy",
-    "tilaaja_ytunnus":       "1927433-5",
-    "tilaaja_yhteyshenkilo": "Pasi Rytkönen",
-}
+TILAAJA_KENTAT = ["tilaaja_yritys", "tilaaja_ytunnus", "tilaaja_yhteyshenkilo",
+                  "tilaaja_puhelin", "tilaaja_email"]
+_UUSI_TILAAJA = "— uusi tilaaja —"
+
+
+def _aiemmat_tilaajat(*listat) -> dict:
+    """Aiemmin käytetyt tilaajat nimen mukaan esitäyttöä varten (viimeisin tieto voittaa)."""
+    tilaajat = {}
+    for lista in listat:
+        for r in lista:
+            nimi = (r.get("tilaaja_yritys") or "").strip()
+            if nimi:
+                tilaajat[nimi] = {k: r.get(k, "") for k in TILAAJA_KENTAT}
+    return tilaajat
+
+
+def _tilaajalomake(avain: str, nykyinen: dict, aiemmat: dict) -> dict:
+    """Tilaajan tiedot. Aiemman tilaajan valinta esitäyttää kentät."""
+    valinnat = [_UUSI_TILAAJA] + sorted(aiemmat)
+    nyk_nimi = (nykyinen.get("tilaaja_yritys") or "").strip()
+    valinta = st.selectbox("Tilaaja", valinnat, key=f"{avain}_valinta",
+                           index=valinnat.index(nyk_nimi) if nyk_nimi in valinnat else 0)
+    if valinta == nyk_nimi:
+        pohja = nykyinen
+    elif valinta in aiemmat:
+        pohja = aiemmat[valinta]
+    else:
+        pohja = {"tilaaja_yritys": nyk_nimi} if nyk_nimi not in aiemmat else {}
+    sfx = tiedosto_slug(valinta)   # avain vaihtuu valinnan mukana → kentät päivittyvät
+    c1, c2 = st.columns(2)
+    t = {
+        "tilaaja_yritys": c1.text_input("Tilaajan yritys *", value=pohja.get("tilaaja_yritys", ""),
+                                        key=f"{avain}_yr_{sfx}"),
+        "tilaaja_ytunnus": c1.text_input("Tilaajan Y-tunnus", value=pohja.get("tilaaja_ytunnus", ""),
+                                         key=f"{avain}_yt_{sfx}"),
+        "tilaaja_yhteyshenkilo": c1.text_input("Yhteyshenkilö",
+                                               value=pohja.get("tilaaja_yhteyshenkilo", ""),
+                                               key=f"{avain}_hlo_{sfx}"),
+        "tilaaja_puhelin": c2.text_input("Yhteyshenkilön puhelin", value=pohja.get("tilaaja_puhelin", ""),
+                                         key=f"{avain}_puh_{sfx}"),
+        "tilaaja_email": c2.text_input("Sähköposti (tarjoukset ja raportit lähetetään tähän)",
+                                       value=pohja.get("tilaaja_email", ""), key=f"{avain}_em_{sfx}"),
+    }
+    return {k: v.strip() for k, v in t.items()}
 
 
 def _badge(tila: str) -> str:
@@ -70,6 +109,9 @@ def _badge_html(tila: str) -> str:
 
 # ── Data-apufunktiot ───────────────────────────────────────────────────────────
 
+# Tallennusavaimet (cateva_kohteet, cateva_tarjoukset, cateva_<nro>) ovat historiallisia
+# nimiä ajalta, jolloin kohteet olivat Cateva-aliurakoita. Älä nimeä uudelleen ilman
+# datan siirtoa — muuten vanhat kohteet ja dokumentit katoavat näkyvistä.
 def lataa_kohteet() -> list:
     return lataa_globaali("cateva_kohteet")
 
@@ -162,23 +204,38 @@ def _loki(toiminto: str, kohde: str = ""):
         pass
 
 
-def _laheta_email(aihe: str, runko: str, liite_nimi: str = None, liite_data: bytes = None):
-    """Lähettää sähköpostin [smtp]-secretsien asetuksilla. Palauttaa (ok, viesti)."""
+def _laheta_email(aihe: str, runko: str, liite_nimi: str = None, liite_data: bytes = None,
+                  vastaanottaja: str = ""):
+    """Lähettää sähköpostin tilaajalle [smtp]-secretsien asetuksilla. Palauttaa (ok, viesti)."""
     import smtplib
     from email.message import EmailMessage
+    vastaanottaja = (vastaanottaja or "").strip()
+    if "@" not in vastaanottaja:
+        return False, ("Tilaajan sähköpostiosoite puuttuu. Lisää se tilaajan tietoihin "
+                       "(Kohteet → Muokkaa kohdetta tai tarjouksen Tilaajan tiedot).")
     try:
         conf = st.secrets["smtp"]
         host, user = conf["host"], conf["user"]
         salasana = conf["password"]
-        vastaanottaja = conf["cateva_vastaanottaja"]
         portti = int(conf.get("port", 465))
+        # Tarkistustila: kaikki viestit ensin omaan postilaatikkoon, josta ne välitetään
+        # tilaajalle. Vanha avain cateva_vastaanottaja toimii samoin (taaksepäin yhteensopiva).
+        tarkistus = (conf.get("tarkistusosoite") or conf.get("cateva_vastaanottaja") or "").strip()
     except Exception:
         return False, ("Sähköpostiasetukset puuttuvat. Lisää Streamlit Secretsiin "
-                       "[smtp] host, port, user, password, cateva_vastaanottaja.")
+                       "[smtp] host, port, user, password.")
+    tilaaja = vastaanottaja
+    if tarkistus:
+        vastaanottaja = tarkistus
+        aihe = f"[TARKISTUS → {tilaaja}] {aihe}"
+        runko = (f"*** Tarkistettavaksi. Välitä tilaajalle osoitteeseen {tilaaja}, "
+                 f"kun viesti on kunnossa. ***\n\n{runko}")
     try:
         msg = EmailMessage()
         msg["From"] = user
         msg["To"] = vastaanottaja
+        if not tarkistus:
+            msg["Bcc"] = user          # kopio omaan postilaatikkoon
         msg["Subject"] = aihe
         msg.set_content(runko)
         if liite_data and liite_nimi:
@@ -193,7 +250,9 @@ def _laheta_email(aihe: str, runko: str, liite_nimi: str = None, liite_data: byt
                 s.starttls()
                 s.login(user, salasana)
                 s.send_message(msg)
-        return True, f"Lähetetty: {vastaanottaja}"
+        if tarkistus:
+            return True, f"Lähetetty tarkistettavaksi: {vastaanottaja} (välitä tilaajalle {tilaaja})"
+        return True, f"Lähetetty: {vastaanottaja} (kopio {user})"
     except Exception as e:
         return False, f"Lähetys epäonnistui: {e}"
 
@@ -256,7 +315,7 @@ st.markdown("""
 
 import auth as A
 
-kayttaja = A.kirjaudu_gate("Asbestikohteet (Cateva)")
+kayttaja = A.kirjaudu_gate("Asbestikohteet")
 rooli    = kayttaja["rooli"]
 on_tj    = A.voi_hyvaksya(rooli)             # admin + työnjohtaja
 on_admin = A.voi_hallita_kayttajia(rooli)    # vain admin
@@ -408,7 +467,7 @@ if on_tyontekija:
 # TYÖNJOHDON NÄKYMÄT
 # ══════════════════════════════════════════════════════════════════════════════
 
-st.title("☣️ Asbestikohteet — Cateva-aliurakat")
+st.title("☣️ Asbestikohteet")
 st.caption("Uudenmaan Asbestipurku Oy · työnumero on kaiken avain")
 
 valilehti_nimet = ["📋 Kohteet", "💶 Tarjoukset", "📄 Ilmoitukset", "📸 Dokumentointi",
@@ -466,15 +525,16 @@ with tab_kohteet:
             })
         st.dataframe(pd.DataFrame(rivit), width="stretch", hide_index=True)
     else:
-        st.info("Ei kohteita vielä. Lisää ensimmäinen Cateva-kohde alta.")
+        st.info("Ei kohteita vielä. Lisää ensimmäinen kohde alta.")
 
     if on_tj:
+        aiemmat_tilaajat = _aiemmat_tilaajat(kohteet)
         tyontekija_tunnukset = [k["tunnus"] for k in A.lataa_kayttajat()
                                 if k.get("rooli") == "tyontekija" and k.get("aktiivinen", True)]
 
         with st.expander("➕ Lisää kohde", expanded=not kohteet):
             u1, u2 = st.columns(2)
-            u_nro    = u1.text_input("Catevan työnumero / yksilöintiviite *", key="ak_nro")
+            u_nro    = u1.text_input("Työnumero / tilaajan viite *", key="ak_nro")
             u_osoite = u1.text_input("Osoite *", key="ak_osoite",
                                      placeholder="esim. Koroistentie 8 C 19, Helsinki")
             u_kunta  = u1.text_input("Sijaintikunta", key="ak_kunta")
@@ -486,18 +546,15 @@ with tab_kohteet:
             u_lopetus = u2.date_input("Suunniteltu lopetus", value=None, key="ak_lopetus",
                                       format="DD.MM.YYYY")
             u_tt      = u2.multiselect("Työntekijät", tyontekija_tunnukset, key="ak_tt")
-            u_kuvaus  = st.text_area("Kuvaus / Catevan kartoituksen tiedot", key="ak_kuvaus",
+            u_kuvaus  = st.text_area("Kuvaus / kartoituksen tiedot", key="ak_kuvaus",
                                      placeholder="esim. C19 kph lattia: betonin pikisively, antofylliitti")
-            y1, y2, y3 = st.columns(3)
-            u_t_hlo = y1.text_input("Catevan yhteyshenkilö",
-                                    value=CATEVA_OLETUS["tilaaja_yhteyshenkilo"], key="ak_thlo")
-            u_t_puh = y2.text_input("Yhteyshenkilön puhelin", key="ak_tpuh")
-            u_t_em  = y3.text_input("Yhteyshenkilön sähköposti", key="ak_tem")
+            st.markdown("**🏢 Tilaaja**")
+            u_tilaaja = _tilaajalomake("ak_t", {}, aiemmat_tilaajat)
 
             if st.button("Luo kohde", type="primary", key="ak_luo"):
                 nro = u_nro.strip()
-                if not nro or not u_osoite.strip():
-                    st.error("Työnumero ja osoite vaaditaan.")
+                if not nro or not u_osoite.strip() or not u_tilaaja["tilaaja_yritys"]:
+                    st.error("Työnumero, osoite ja tilaajan yritys vaaditaan.")
                 elif any(k["tyonumero"] == nro for k in kohteet):
                     st.error(f"Työnumero {nro} on jo rekisterissä.")
                 else:
@@ -511,11 +568,7 @@ with tab_kohteet:
                         "lopetus_pvm": u_lopetus.isoformat() if u_lopetus else "",
                         "tyontekijat": u_tt,
                         "kuvaus": u_kuvaus.strip(),
-                        "tilaaja_yritys": CATEVA_OLETUS["tilaaja_yritys"],
-                        "tilaaja_ytunnus": CATEVA_OLETUS["tilaaja_ytunnus"],
-                        "tilaaja_yhteyshenkilo": u_t_hlo.strip(),
-                        "tilaaja_puhelin": u_t_puh.strip(),
-                        "tilaaja_email": u_t_em.strip(),
+                        **u_tilaaja,
                         "tila": "uusi",
                         "luotu": date.today().isoformat(),
                     })
@@ -546,6 +599,8 @@ with tab_kohteet:
                                        default=[t for t in mk.get("tyontekijat", [])
                                                 if t in tyontekija_tunnukset], key="am_tt")
                 mk_kuvaus = st.text_area("Kuvaus", value=mk.get("kuvaus", ""), key="am_kuvaus")
+                st.markdown("**🏢 Tilaaja**")
+                mk_tilaaja = _tilaajalomake(f"am_t_{tiedosto_slug(m_nro)}", mk, aiemmat_tilaajat)
 
                 b1, b2 = st.columns(2)
                 if b1.button("💾 Tallenna muutokset", type="primary", key="am_tall"):
@@ -555,6 +610,7 @@ with tab_kohteet:
                         "aloitus_pvm": mk_aloitus.isoformat() if mk_aloitus else "",
                         "lopetus_pvm": mk_lopetus.isoformat() if mk_lopetus else "",
                         "tyontekijat": mk_tt, "kuvaus": mk_kuvaus.strip(),
+                        **mk_tilaaja,
                     })
                     tallenna_kohteet(kohteet)
                     _loki("Muokkasi kohdetta", m_nro)
@@ -594,25 +650,29 @@ with tab_tarjoukset:
             asetukset = hinnasto_data[0].get("asetukset", TL.OLETUSASETUKSET)
         else:
             hinnasto, asetukset = TL.OLETUSHINNASTO, TL.OLETUSASETUKSET
+        # Tallennusavaimet (cateva_*) säilytetty ennallaan, ettei vanha data katoa
         tarjoukset = lataa_globaali("cateva_tarjoukset")
+        aiemmat_t = _aiemmat_tilaajat(kohteet, tarjoukset)
 
         # ── Uusi tarjouspyyntö ────────────────────────────────────────────────
         with st.expander("📥 Uusi tarjouspyyntö", expanded=not tarjoukset):
-            tp_pdf = st.file_uploader("Catevan kartoitusraportti (PDF) — esitäyttää tiedot",
-                                      type=["pdf"], key="tp_pdf")
+            tp_pdf = st.file_uploader("Kartoitusraportti (PDF) — esitäyttää tiedot, jos raportin "
+                                      "rakenne tunnistetaan", type=["pdf"], key="tp_pdf")
             esi = {}
             if tp_pdf:
-                esi = TL.parsi_cateva_kartoitus(tp_pdf.getvalue(), tp_pdf.name)
+                esi = TL.parsi_kartoitus(tp_pdf.getvalue(), tp_pdf.name)
             n1, n2 = st.columns(2)
             tp_nro = n1.text_input("Työnumero *", value=esi.get("tyonumero", ""), key="tp_nro")
             tp_osoite = n2.text_input("Osoite *", value=esi.get("osoite", "")
                                       or esi.get("kohde", ""), key="tp_osoite")
             if esi.get("materiaalit"):
                 st.caption("Kartoituksesta luettu: " + TL.kuvaus_kartoituksesta(esi))
+            st.markdown("**🏢 Tilaaja**")
+            tp_tilaaja = _tilaajalomake("tp_t", {"tilaaja_yritys": esi.get("tilaaja", "")}, aiemmat_t)
             if st.button("Luo tarjous", type="primary", key="tp_luo"):
                 nro = tp_nro.strip()
-                if not nro or not tp_osoite.strip():
-                    st.error("Työnumero ja osoite vaaditaan.")
+                if not nro or not tp_osoite.strip() or not tp_tilaaja["tilaaja_yritys"]:
+                    st.error("Työnumero, osoite ja tilaajan yritys vaaditaan.")
                 elif any(t["tyonumero"] == nro for t in tarjoukset):
                     st.error(f"Työnumerolle {nro} on jo tarjous.")
                 else:
@@ -627,6 +687,7 @@ with tab_tarjoukset:
                         "kartoitus": esi,
                         "kuvaus": TL.kuvaus_kartoituksesta(esi),
                         "rivit": TL.oletustarjousrivit(hinnasto),
+                        **tp_tilaaja,
                         "tila": "saapunut",
                     })
                     tallenna_globaali("cateva_tarjoukset", tarjoukset)
@@ -654,6 +715,15 @@ with tab_tarjoukset:
             st.markdown(f"**Tila:** {TILAT_TARJOUS.get(tarjous.get('tila'), '')}"
                         + (f" &nbsp;·&nbsp; {tarjous.get('kuvaus','')}"
                            if tarjous.get("kuvaus") else ""))
+            st.caption(f"Tilaaja: {tarjous.get('tilaaja_yritys') or '—'}"
+                       f" · {tarjous.get('tilaaja_email') or 'ei sähköpostia'}")
+            with st.expander("🏢 Tilaajan tiedot"):
+                tj_tilaaja = _tilaajalomake(f"tj_t_{t_slug}", tarjous, aiemmat_t)
+                if st.button("💾 Tallenna tilaaja", key=f"tj_t_tall_{t_slug}"):
+                    tarjous.update(tj_tilaaja)
+                    tallenna_globaali("cateva_tarjoukset", tarjoukset)
+                    st.success("Tilaajan tiedot tallennettu.")
+                    st.rerun()
 
             # Kuittausviesti
             if tarjous.get("tila") == "saapunut":
@@ -664,7 +734,8 @@ with tab_tarjoukset:
                         f"Hei,\n\nolemme vastaanottaneet tarjouspyynnön.\n"
                         f"Työnumero: {tarjous['tyonumero']}\nKohde: {tarjous.get('osoite','')}\n\n"
                         f"Toimitamme tarjouksen lähipäivinä.\n\n"
-                        f"Terveisin\n{kayttaja.get('nimi','')}\n{DOK.YRITYS['nimi']}")
+                        f"Terveisin\n{kayttaja.get('nimi','')}\n{DOK.YRITYS['nimi']}",
+                        vastaanottaja=tarjous.get("tilaaja_email", ""))
                     if ok:
                         tarjous["tila"] = "kuitattu"
                         tallenna_globaali("cateva_tarjoukset", tarjoukset)
@@ -725,7 +796,7 @@ with tab_tarjoukset:
                     "tyonumero": tarjous["tyonumero"],
                     "osoite": tarjous.get("osoite", ""),
                     "pvm": date.today().strftime("%-d.%-m.%Y"),
-                    "tilaaja_yritys": "Cateva Oy",
+                    "tilaaja_yritys": tarjous.get("tilaaja_yritys", ""),
                     "saate": ("Kiitämme tarjouspyynnöstä. Tarjoamme asbestipurkutyön "
                               "alla olevan erittelyn mukaisesti."),
                     "kartoitus_viite": tarjous.get("tyonumero", ""),
@@ -753,7 +824,8 @@ with tab_tarjoukset:
                         f"Hei,\n\nliitteenä tarjouksemme asbestipurkutyöstä.\n"
                         f"Työnumero: {tarjous['tyonumero']}\nKohde: {tarjous.get('osoite','')}\n\n"
                         f"Terveisin\n{kayttaja.get('nimi','')}\n{DOK.YRITYS['nimi']}",
-                        f"tarjous_asbestipurku_{t_slug}.pdf", pdf_tarjous)
+                        f"tarjous_asbestipurku_{t_slug}.pdf", pdf_tarjous,
+                        vastaanottaja=tarjous.get("tilaaja_email", ""))
                     if ok:
                         tarjous["tila"] = "lahetetty"
                         tarjous["lahetetty"] = date.today().isoformat()
@@ -780,8 +852,7 @@ with tab_tarjoukset:
                             "tyontekijat": [],
                             "kuvaus": tarjous.get("kuvaus", ""),
                             "tarjottu_hinta": tarjous.get("loppusumma", ""),
-                            **CATEVA_OLETUS,
-                            "tilaaja_puhelin": "", "tilaaja_email": "",
+                            **{k: tarjous.get(k, "") for k in TILAAJA_KENTAT},
                             "tila": "uusi",
                             "luotu": date.today().isoformat(),
                         })
@@ -898,7 +969,7 @@ with tab_ilmoitukset:
         i_labra = f4.text_input("Näytteen analysointipaikka",
                                 value=ilm.get("analysointipaikka", "Labroc Oy, Helsinki"), key="i_labra")
 
-        st.markdown("#### Kartoitus (Catevan raportista)")
+        st.markdown("#### Kartoitus (kartoitusraportista)")
         k1, k2, k3 = st.columns(3)
         i_kart_hav = k1.text_input("Havainnot (sijainti, määrä, laatu)",
                                    value=ilm.get("kartoitus_havainnot", ""), key="i_kart_hav")
@@ -906,7 +977,7 @@ with tab_ilmoitukset:
                                    value=ilm.get("kartoitus_pvm", ""), key="i_kart_pvm")
         i_kartoittaja = k3.text_input("Kartoittaja + yhteystiedot",
                                       value=ilm.get("kartoittaja", ""), key="i_kartoittaja",
-                                      placeholder="esim. Tom Laxén / Cateva Oy")
+                                      placeholder="esim. Etunimi Sukunimi / Kartoitusyritys Oy, puh.")
 
         st.markdown("#### Työntekijät ja kalusto ilmoitukseen")
         v1, v2 = st.columns(2)
@@ -1153,25 +1224,26 @@ with tab_raportti:
                                    file_name=f"asbestipurkutyon_aloitus_ja_lopetusraportti_{r_slug}.pdf",
                                    mime="application/pdf", width="stretch")
 
-                st.markdown("#### 📧 Lähetys Catevalle")
+                st.markdown("#### 📧 Lähetys tilaajalle")
                 aihe = f"Asbestityön aloitus- ja lopetusraportti {r_nro} — {rk.get('osoite','')}"
-                st.caption(f"Aihe: {aihe}")
+                st.caption(f"Vastaanottaja: {rk.get('tilaaja_yritys') or '—'} "
+                           f"<{rk.get('tilaaja_email') or 'sähköposti puuttuu'}> · Aihe: {aihe}")
                 runko = st.text_area("Saateviesti", key="r_saate", value=(
                     f"Hei,\n\nliitteenä asbestityön aloitus- ja lopetusraportti.\n"
                     f"Työnumero: {r_nro}\nKohde: {rk.get('osoite','')}\n\n"
                     f"Terveisin\n{kayttaja.get('nimi','')}\n{DOK.YRITYS['nimi']}"))
                 varmistus = st.checkbox("Olen esikatsellut raportin", key="r_varmistus")
-                if st.button("📧 Lähetä Catevalle", type="primary",
+                if st.button("📧 Lähetä tilaajalle", type="primary",
                              disabled=not varmistus, key="r_laheta"):
                     ok, viesti = _laheta_email(
                         aihe, runko,
                         f"asbestipurkutyon_aloitus_ja_lopetusraportti_{r_slug}.pdf",
-                        pdf_valmis)
+                        pdf_valmis, vastaanottaja=rk.get("tilaaja_email", ""))
                     if ok:
                         rk["raportti_lahetetty"] = date.today().isoformat()
                         rk["tila"] = "raportti_lahetetty"
                         tallenna_kohteet(kohteet)
-                        _loki("Lähetti raportin Catevalle", f"{r_nro} — {viesti}")
+                        _loki("Lähetti raportin tilaajalle", f"{r_nro} — {viesti}")
                         st.success(f"✅ Raportti lähetetty. {viesti}")
                         st.rerun()
                     else:
