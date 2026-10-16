@@ -52,6 +52,13 @@ ALOITUS_KOHDAT = [
 TILAAJA_KENTAT = ["tilaaja_yritys", "tilaaja_ytunnus", "tilaaja_yhteyshenkilo",
                   "tilaaja_puhelin", "tilaaja_email"]
 _UUSI_TILAAJA = "— uusi tilaaja —"
+# Päättyneet asiakkuudet: ei ehdoteta aiempien tilaajien listalla (vanhat kohteet säilyvät)
+PAATTYNEET_TILAAJAT = {"cateva"}
+
+
+def _paattynyt(nimi: str) -> bool:
+    n = nimi.lower()
+    return any(p in n for p in PAATTYNEET_TILAAJAT)
 
 
 def _aiemmat_tilaajat(*listat) -> dict:
@@ -60,7 +67,7 @@ def _aiemmat_tilaajat(*listat) -> dict:
     for lista in listat:
         for r in lista:
             nimi = (r.get("tilaaja_yritys") or "").strip()
-            if nimi:
+            if nimi and not _paattynyt(nimi):
                 tilaajat[nimi] = {k: r.get(k, "") for k in TILAAJA_KENTAT}
     return tilaajat
 
@@ -71,12 +78,10 @@ def _tilaajalomake(avain: str, nykyinen: dict, aiemmat: dict) -> dict:
     nyk_nimi = (nykyinen.get("tilaaja_yritys") or "").strip()
     valinta = st.selectbox("Tilaaja", valinnat, key=f"{avain}_valinta",
                            index=valinnat.index(nyk_nimi) if nyk_nimi in valinnat else 0)
-    if valinta == nyk_nimi:
-        pohja = nykyinen
-    elif valinta in aiemmat:
-        pohja = aiemmat[valinta]
+    if valinta == nyk_nimi or (valinta == _UUSI_TILAAJA and nyk_nimi not in aiemmat):
+        pohja = nykyinen     # oma tieto (myös listalta puuttuva, esim. päättynyt tilaaja)
     else:
-        pohja = {"tilaaja_yritys": nyk_nimi} if nyk_nimi not in aiemmat else {}
+        pohja = aiemmat.get(valinta, {})
     sfx = tiedosto_slug(valinta)   # avain vaihtuu valinnan mukana → kentät päivittyvät
     c1, c2 = st.columns(2)
     t = {
