@@ -837,11 +837,11 @@ if tab_projektit is not None:
             with st.expander("➕ Luo uusi projekti", expanded=len(rekisteri)==0):
                 np1, np2 = st.columns(2)
                 uusi_nimi   = np1.text_input("Projektin nimi",
-                              placeholder="esim. Valteri-koulu, Tenholantie 15", key="np_nimi")
+                              placeholder="esim. Osoite 12 tai työmaanumero", key="np_nimi")
                 uusi_kuvaus = np1.text_input("Lyhyt kuvaus",
                               placeholder="esim. Asbestipurku 5 krs", key="np_kuv")
                 uusi_tilaaja = np1.text_input("Tilaaja",
-                               placeholder="esim. Mirlux Oy / Lalli Kuoppala", key="np_tilaaja")
+                               placeholder="esim. Yritys Oy / Etunimi Sukunimi", key="np_tilaaja")
 
                 uusi_koodi  = np2.text_input(
                     "Projektikoodi (6 merkkiä)", value=_luo_koodi(), max_chars=6,
@@ -872,7 +872,7 @@ if tab_projektit is not None:
                 uusi_tyomaa_avain = w1.text_input("Työmaa-avain / työmaanumero",
                     key="np_tyomaa_avain", help="Verohallinnon työmaan tunniste")
                 uusi_tyomaa_osoite = w1.text_input("Työmaan osoite",
-                    placeholder="esim. Tenholantie 15, 00280 Helsinki", key="np_tyomaa_osoite")
+                    placeholder="esim. Osoite 12, 00100 Kaupunki", key="np_tyomaa_osoite")
                 uusi_aloitus = w1.text_input("Aloituspäivä (pp.kk.vvvv)",
                     placeholder="01.10.2026", key="np_aloitus")
                 uusi_paatoteuttaja = w2.text_input("Päätoteuttaja",

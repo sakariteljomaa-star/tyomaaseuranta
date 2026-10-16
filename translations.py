@@ -9,7 +9,7 @@ KAANNOKSET = {
 
     # ── Sivupalkki ────────────────────────────────────────────────────────────
     "projekti":         {"fi": "Projektin nimi",                     "ru": "Название объекта"},
-    "projekti_ph":      {"fi": "esim. Valteri-koulu, Tenholantie 15","ru": "напр. Valteri-koulu, Tenholantie 15"},
+    "projekti_ph":      {"fi": "esim. Osoite 12 tai työmaanumero",  "ru": "напр. Адрес 12 или номер объекта"},
     "viikko":           {"fi": "Viikko",                             "ru": "Неделя"},
     "vuosi":            {"fi": "Vuosi",                              "ru": "Год"},
     "oletus_kat":       {"fi": "Oletuskategoria",                    "ru": "Категория по умолчанию"},

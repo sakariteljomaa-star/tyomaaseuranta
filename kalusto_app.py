@@ -151,7 +151,7 @@ if skannaus_nro:
     if not on_tyomaalla:
         # Laite varastossa → voi lähettää työmaakohtaisesti
         st.subheader("📤 Lähetä työmaakohtaisesti")
-        tyomaa = st.text_input("Työmaa / kohde", placeholder="esim. Valteri-koulu", key="sk_tyomaa")
+        tyomaa = st.text_input("Työmaa / kohde", placeholder="esim. Osoite 12 tai työmaanumero", key="sk_tyomaa")
         if st.button("✅ Ota käyttöön", type="primary", width="stretch", key="sk_checkout"):
             if not tekija:
                 st.error("Syötä nimesi.")

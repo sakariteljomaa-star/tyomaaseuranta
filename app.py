@@ -84,7 +84,7 @@ with st.sidebar:
             if _kasin.strip():
                 projekti = _kasin.strip()
     else:
-        projekti = st.text_input("Projektin nimi", placeholder="esim. Valteri-koulu, Tenholantie 15")
+        projekti = st.text_input("Projektin nimi", placeholder="esim. Osoite 12 tai työmaanumero")
     yritys   = st.text_input("Yritys", value="Uudenmaan Asbestipurku Oy")
     st.divider()
     st.header("Asetukset")
@@ -99,7 +99,7 @@ with st.sidebar:
     tuontikansio = st.text_input(
         "Tuontikansio",
         value=st.session_state.get("tuontikansio", oletus_kansio()),
-        placeholder="/Users/sakari/Downloads",
+        placeholder="esim. /Users/<käyttäjä>/Downloads",
         key="_tuontikansio_input",
     )
     st.session_state["tuontikansio"] = tuontikansio
@@ -409,7 +409,7 @@ with tab_tunnit:
         with st.expander("➕ Lisää viikko käsin", expanded=len(viikot)==0):
             k1,k2 = st.columns(2)
             uv = k1.number_input("Viikko",1,53,int(date.today().strftime("%V")),key="kv")
-            uk = k1.text_input("Kuvaus",placeholder="esim. Tenholantie 15 – vko 21",key="kk")
+            uk = k1.text_input("Kuvaus",placeholder="esim. Osoite 12 – vko 21",key="kk")
             ur = k2.number_input("Urakka (h)",    0.0,step=0.5,key="ku")
             lt = k2.number_input("Lisätyö (h)",   0.0,step=0.5,key="kl")
             vv = k2.number_input("Vesivahinko (h)",0.0,step=0.5,key="kvv")

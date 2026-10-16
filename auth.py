@@ -238,8 +238,8 @@ def kirjaudu_gate(sovellus_nimi: str = "Työmaaseuranta") -> dict:
             pass
         st.info("Ei käyttäjiä vielä. Luo ensimmäinen pääkäyttäjä (admin).")
         with st.form("luo_admin"):
-            a_tunnus = st.text_input("Käyttäjätunnus", placeholder="esim. sakari")
-            a_nimi   = st.text_input("Koko nimi", placeholder="Sakari Teljomaa")
+            a_tunnus = st.text_input("Käyttäjätunnus", placeholder="esim. etunimi.sukunimi")
+            a_nimi   = st.text_input("Koko nimi", placeholder="Etunimi Sukunimi")
             a_pw1    = st.text_input("Salasana", type="password")
             a_pw2    = st.text_input("Salasana uudelleen", type="password")
             if st.form_submit_button("Luo pääkäyttäjä", type="primary"):
@@ -267,7 +267,7 @@ def kirjaudu_gate(sovellus_nimi: str = "Työmaaseuranta") -> dict:
     st.title(f"🔒 {sovellus_nimi}")
     st.caption("Kirjaudu sisään")
     with st.form("kirjautuminen"):
-        tunnus = st.text_input("Käyttäjätunnus")
+        tunnus = st.text_input("Käyttäjätunnus", placeholder="esim. etunimi.sukunimi")
         pw     = st.text_input("Salasana", type="password")
         if st.form_submit_button("Kirjaudu", type="primary"):
             tunnus = tunnus.strip().lower()
@@ -391,8 +391,8 @@ def nayta_kayttajahallinta():
     # Uusi käyttäjä
     with st.expander("➕ Lisää käyttäjä", expanded=len(kayttajat) <= 1):
         c1, c2 = st.columns(2)
-        u_tunnus = c1.text_input("Käyttäjätunnus", key="uk_tunnus")
-        u_nimi   = c1.text_input("Koko nimi", key="uk_nimi")
+        u_tunnus = c1.text_input("Käyttäjätunnus", placeholder="esim. etunimi.sukunimi", key="uk_tunnus")
+        u_nimi   = c1.text_input("Koko nimi", placeholder="Etunimi Sukunimi", key="uk_nimi")
         u_rooli  = c2.selectbox("Rooli",
                     options=list(ROOLIT.keys()),
                     format_func=lambda r: ROOLIT[r]["nimi"], key="uk_rooli")

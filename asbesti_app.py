@@ -539,9 +539,10 @@ with tab_kohteet:
 
         with st.expander("➕ Lisää kohde", expanded=not kohteet):
             u1, u2 = st.columns(2)
-            u_nro    = u1.text_input("Työnumero / tilaajan viite *", key="ak_nro")
+            u_nro    = u1.text_input("Työnumero / tilaajan viite *", key="ak_nro",
+                                     placeholder="esim. työmaanumero tai tilaajan viite")
             u_osoite = u1.text_input("Osoite *", key="ak_osoite",
-                                     placeholder="esim. Koroistentie 8 C 19, Helsinki")
+                                     placeholder="esim. Osoite 12 C 19, Kaupunki")
             u_kunta  = u1.text_input("Sijaintikunta", key="ak_kunta")
             u_nimi   = u1.text_input("Työmaan nimi (tyhjä = osoite)", key="ak_nimi")
             u_vastuu = u2.text_input("Meidän vastuuhenkilö",
