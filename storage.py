@@ -27,6 +27,14 @@ def _pilvessa() -> bool:
         return False
 
 
+def lukuvirhe(avain: str, projekti: str = "") -> bool:
+    """True jos tiedon viimeisin luku pilvestä epäonnistui (tyhjä lista ei ole luotettava)."""
+    if not _pilvessa():
+        return False
+    from storage_supabase import lukuvirhe as _lv
+    return _lv(f"{projekti}/{avain}" if projekti else avain)
+
+
 def tallennustila() -> str:
     """Palauttaa 'pilvi' tai 'paikallinen' — kertoo säilyykö data restartissa."""
     return "pilvi" if _pilvessa() else "paikallinen"

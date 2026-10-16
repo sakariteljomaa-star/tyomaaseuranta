@@ -34,6 +34,33 @@ def on_pilvessa() -> bool:
     return base is not None
 
 
+# ── Lukuvirheiden seuranta ─────────────────────────────────────────────────────
+# Epäonnistunut luku palauttaa tyhjän listan. Jos sama tieto sen jälkeen
+# tallennettaisiin, tyhjä (tai yhden uuden rivin) lista korvaisi Supabasessa
+# olevat tiedot. Siksi kirjoitus estetään, kunnes luku on taas onnistunut.
+
+def _virheet() -> set:
+    return st.session_state.setdefault("_sb_lukuvirheet", set())
+
+def _luku_ok(tunniste: str):
+    _virheet().discard(tunniste)
+
+def _luku_virhe(tunniste: str):
+    _virheet().add(tunniste)
+
+def lukuvirhe(tunniste: str) -> bool:
+    """True jos tunnisteen (globaali avain tai 'projekti/avain') viimeisin luku epäonnistui."""
+    return tunniste in _virheet()
+
+def _kirjoitus_estetty(tunniste: str) -> bool:
+    if lukuvirhe(tunniste):
+        st.error(f"Tallennus estetty ({tunniste}): tietoja ei pystytty lukemaan Supabasesta, "
+                 "joten tallennus voisi korvata olemassa olevat tiedot. Lataa sivu uudelleen, "
+                 "kun yhteys toimii.")
+        return True
+    return False
+
+
 # ── Projektikohtainen data ─────────────────────────────────────────────────────
 
 def lataa_projekti(projekti: str, avain: str) -> list:
@@ -49,17 +76,19 @@ def lataa_projekti(projekti: str, avain: str) -> list:
         )
         r.raise_for_status()
         rivit = r.json()
+        _luku_ok(f"{projekti}/{avain}")
         if rivit:
             d = rivit[0]["data"]
             return d if isinstance(d, list) else json.loads(d)
     except Exception as e:
+        _luku_virhe(f"{projekti}/{avain}")
         st.error(f"Supabase-lukuvirhe ({avain}): {e}")
     return []
 
 
 def tallenna_projekti(projekti: str, avain: str, data: list):
     base, headers = _conf()
-    if not base:
+    if not base or _kirjoitus_estetty(f"{projekti}/{avain}"):
         return
     try:
         h = dict(headers)
@@ -91,17 +120,19 @@ def lataa_globaali(avain: str) -> list:
         )
         r.raise_for_status()
         rivit = r.json()
+        _luku_ok(avain)
         if rivit:
             d = rivit[0]["data"]
             return d if isinstance(d, list) else json.loads(d)
     except Exception as e:
+        _luku_virhe(avain)
         st.error(f"Supabase-lukuvirhe ({avain}): {e}")
     return []
 
 
 def tallenna_globaali(avain: str, data: list) -> bool:
     base, headers = _conf()
-    if not base:
+    if not base or _kirjoitus_estetty(avain):
         return False
     try:
         h = dict(headers)

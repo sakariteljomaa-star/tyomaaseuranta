@@ -213,6 +213,17 @@ def kirjaudu_gate(sovellus_nimi: str = "Työmaaseuranta") -> dict:
 
     kayttajat = lataa_kayttajat()
 
+    # Lukuvirhe ≠ tyhjä rekisteri: älä tarjoa alkuasennusta, ettei uusi admin korvaa rekisteriä
+    from storage import lukuvirhe
+    if not kayttajat and lukuvirhe("kayttajat"):
+        st.title(f"🔒 {sovellus_nimi}")
+        st.error("Käyttäjärekisteriä ei saatu luettua — tietokantayhteys ei toimi juuri nyt. "
+                 "Kirjautuminen ei ole mahdollista. Yritä hetken päästä uudelleen; jos vika "
+                 "jatkuu, ilmoita pääkäyttäjälle.")
+        if st.button("🔄 Yritä uudelleen"):
+            st.rerun()
+        st.stop()
+
     # ── Ensikäynnistys: luo pääkäyttäjä jos rekisteri tyhjä ────────────────
     if not kayttajat:
         st.title(f"🔧 {sovellus_nimi} — alkuasennus")

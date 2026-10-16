@@ -191,6 +191,13 @@ kirjoitukset (virhe 42501). Avain VAIN Streamlit Secretsiin, ei koskaan GitHubii
   secret-avainta kaikissa kolmessa sovelluksessa.
 - **`runtime.txt` ei toimi Streamlit Cloudissa** (Heroku-konventio). Python-versio
   valitaan appin Advanced settings -kohdassa.
+- **Lukuvirhe ≠ tyhjä data:** epäonnistunut Supabase-luku palauttaa `[]`. `storage_supabase`
+  merkitsee sen ja **estää saman tiedon tallennuksen**, kunnes luku onnistuu (muuten tyhjä
+  lista korvaisi tiedot). `auth.kirjaudu_gate` ei tarjoa alkuasennusta lukuvirheen aikana.
+  Tarkistus: `storage.lukuvirhe(avain[, projekti])`.
+- **Supabase Free pysäyttää projektin** ~7 vrk käyttämättömyyden jälkeen → osoite lakkaa
+  resolvoitumasta (`NameResolutionError`). Palautus: Supabase Dashboard → projekti → Restore.
+  Streamlit-pingaus ei riitä (curl ei aja Python-koodia eikä tee Supabase-kutsua).
 - **Älä pinniä `supabase`-kirjastoa:** se aiheutti loputtomia httpx/gotrue/pydantic-
   ristiriitoja. Siksi käytämme suoria REST-kutsuja (`requests`).
 - **QR-koodien app_url:** kalustoseurannan secrets `[kalusto] app_url` pitää olla
