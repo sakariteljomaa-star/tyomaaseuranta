@@ -41,6 +41,7 @@ import auth as A
 kayttaja = A.kirjaudu_gate("Työmaaseuranta — Kustannusseuranta")
 rooli    = kayttaja["rooli"]
 on_admin = A.voi_hallita_kayttajia(rooli)
+voi_muokata = A.voi_hyvaksya(rooli)   # katselija: vain luku, ei tallennusta eikä poistoa
 
 # Kustannusseuranta on arkaluonteinen — työntekijä-rooli ei pääse
 if rooli == "tyontekija":
@@ -54,6 +55,8 @@ if rooli == "tyontekija":
 
 with st.sidebar:
     st.caption(f"👤 {kayttaja.get('nimi', kayttaja['tunnus'])}  ·  {A.ROOLIT[rooli]['nimi']}")
+    if not voi_muokata:
+        st.caption("👁️ Vain luku — tallennus ja poisto vain työnjohdolle.")
     if st.button("🔓 Kirjaudu ulos", width="stretch", key="logout_btn"):
         A.kirjaudu_ulos()
         st.rerun()
@@ -373,54 +376,56 @@ with tab_tunnit:
         df_nn = df_tk[df_tk["Työtunnit"] > 0]
         st.caption(f"Projekti: **{meta.get('projekti','')}** | Jakso: {meta.get('jakso','')} | Tunnit: **{meta.get('yht_tunnit',0):.1f} h**")
         st.dataframe(df_nn, width="stretch", hide_index=True)
-        st.markdown("**Lisää viikkona:**")
-        ti1, ti2, ti3 = st.columns(3)
-        ti_vko  = ti1.number_input("Viikko",1,53,int(date.today().strftime("%V")),key="ti_vko")
-        ti_kuv  = ti1.text_input("Kuvaus", key="ti_kuv",
-                    value=f"{meta.get('projekti','')} – vko {int(date.today().strftime('%V'))} | {len(df_nn)} tekijää")
-        yht_h   = float(meta.get("yht_tunnit", 0))
-        ti_ur   = ti2.number_input("Urakka (h)",     0.0, step=0.5, value=yht_h, key="ti_ur")
-        ti_lt   = ti2.number_input("Lisätyö (h)",    0.0, step=0.5, key="ti_lt")
-        ti_vv   = ti2.number_input("Vesivahinko (h)",0.0, step=0.5, key="ti_vv")
-        ti_jt   = ti3.number_input("Jäte (€)",       0.0, step=1.0, key="ti_jt")
-        ti_kl   = ti3.number_input("Kalusto (€)",    0.0, step=1.0, key="ti_kl")
-        ti3.caption("ℹ️ Jaa Urakka/Lisätyö itse.")
-        if st.button("Tuo viikkona", type="primary", key="tuo_vko"):
-            yht = ti_ur + ti_lt + ti_vv
-            u   = {"viikko":int(ti_vko),"kuvaus":ti_kuv,
-                   "urakka_h":ti_ur,"lisatyo_h":ti_lt,"vesivahinko_h":ti_vv,
-                   "yht_h":yht,"tuntikust_eur":yht*tuntihinta,
-                   "jate_eur":ti_jt,"kalusto_eur":ti_kl,
-                   "kaikki_yht_eur":yht*tuntihinta+ti_jt+ti_kl,"tuntihinta":tuntihinta,
-                   "tyontekijat":df_nn[["Työntekijä","Työtunnit"]].to_dict("records")}
-            viikot = sorted([v for v in viikot if v["viikko"]!=int(ti_vko)]+[u], key=lambda v:v["viikko"])
-            st.session_state["tuntiseuranta"] = viikot
-            tallenna_tuntiseuranta(projekti, viikot)
-            st.success(f"Viikko {ti_vko} tuotu ({yht:.1f} h)!")
-            st.rerun()
+        if voi_muokata:
+            st.markdown("**Lisää viikkona:**")
+            ti1, ti2, ti3 = st.columns(3)
+            ti_vko  = ti1.number_input("Viikko",1,53,int(date.today().strftime("%V")),key="ti_vko")
+            ti_kuv  = ti1.text_input("Kuvaus", key="ti_kuv",
+                        value=f"{meta.get('projekti','')} – vko {int(date.today().strftime('%V'))} | {len(df_nn)} tekijää")
+            yht_h   = float(meta.get("yht_tunnit", 0))
+            ti_ur   = ti2.number_input("Urakka (h)",     0.0, step=0.5, value=yht_h, key="ti_ur")
+            ti_lt   = ti2.number_input("Lisätyö (h)",    0.0, step=0.5, key="ti_lt")
+            ti_vv   = ti2.number_input("Vesivahinko (h)",0.0, step=0.5, key="ti_vv")
+            ti_jt   = ti3.number_input("Jäte (€)",       0.0, step=1.0, key="ti_jt")
+            ti_kl   = ti3.number_input("Kalusto (€)",    0.0, step=1.0, key="ti_kl")
+            ti3.caption("ℹ️ Jaa Urakka/Lisätyö itse.")
+            if st.button("Tuo viikkona", type="primary", key="tuo_vko"):
+                yht = ti_ur + ti_lt + ti_vv
+                u   = {"viikko":int(ti_vko),"kuvaus":ti_kuv,
+                       "urakka_h":ti_ur,"lisatyo_h":ti_lt,"vesivahinko_h":ti_vv,
+                       "yht_h":yht,"tuntikust_eur":yht*tuntihinta,
+                       "jate_eur":ti_jt,"kalusto_eur":ti_kl,
+                       "kaikki_yht_eur":yht*tuntihinta+ti_jt+ti_kl,"tuntihinta":tuntihinta,
+                       "tyontekijat":df_nn[["Työntekijä","Työtunnit"]].to_dict("records")}
+                viikot = sorted([v for v in viikot if v["viikko"]!=int(ti_vko)]+[u], key=lambda v:v["viikko"])
+                st.session_state["tuntiseuranta"] = viikot
+                tallenna_tuntiseuranta(projekti, viikot)
+                st.success(f"Viikko {ti_vko} tuotu ({yht:.1f} h)!")
+                st.rerun()
         st.divider()
 
-    # Käsin lisäys
-    with st.expander("➕ Lisää viikko käsin", expanded=len(viikot)==0):
-        k1,k2 = st.columns(2)
-        uv = k1.number_input("Viikko",1,53,int(date.today().strftime("%V")),key="kv")
-        uk = k1.text_input("Kuvaus",placeholder="esim. Tenholantie 15 – vko 21",key="kk")
-        ur = k2.number_input("Urakka (h)",    0.0,step=0.5,key="ku")
-        lt = k2.number_input("Lisätyö (h)",   0.0,step=0.5,key="kl")
-        vv = k2.number_input("Vesivahinko (h)",0.0,step=0.5,key="kvv")
-        k3,k4 = st.columns(2)
-        jt = k3.number_input("Jäte (€)",   0.0,step=1.0,key="kjt")
-        kl = k4.number_input("Kalusto (€)",0.0,step=1.0,key="kkl")
-        if st.button("Tallenna viikko", type="primary",key="ktall"):
-            yh = ur+lt+vv
-            u  = {"viikko":int(uv),"kuvaus":uk,"urakka_h":ur,"lisatyo_h":lt,"vesivahinko_h":vv,
-                  "yht_h":yh,"tuntikust_eur":yh*tuntihinta,"jate_eur":jt,"kalusto_eur":kl,
-                  "kaikki_yht_eur":yh*tuntihinta+jt+kl,"tuntihinta":tuntihinta}
-            viikot = sorted([v for v in viikot if v["viikko"]!=int(uv)]+[u], key=lambda v:v["viikko"])
-            st.session_state["tuntiseuranta"] = viikot
-            tallenna_tuntiseuranta(projekti, viikot)
-            st.success(f"Viikko {uv} tallennettu!")
-            st.rerun()
+    if voi_muokata:
+        # Käsin lisäys
+        with st.expander("➕ Lisää viikko käsin", expanded=len(viikot)==0):
+            k1,k2 = st.columns(2)
+            uv = k1.number_input("Viikko",1,53,int(date.today().strftime("%V")),key="kv")
+            uk = k1.text_input("Kuvaus",placeholder="esim. Tenholantie 15 – vko 21",key="kk")
+            ur = k2.number_input("Urakka (h)",    0.0,step=0.5,key="ku")
+            lt = k2.number_input("Lisätyö (h)",   0.0,step=0.5,key="kl")
+            vv = k2.number_input("Vesivahinko (h)",0.0,step=0.5,key="kvv")
+            k3,k4 = st.columns(2)
+            jt = k3.number_input("Jäte (€)",   0.0,step=1.0,key="kjt")
+            kl = k4.number_input("Kalusto (€)",0.0,step=1.0,key="kkl")
+            if st.button("Tallenna viikko", type="primary",key="ktall"):
+                yh = ur+lt+vv
+                u  = {"viikko":int(uv),"kuvaus":uk,"urakka_h":ur,"lisatyo_h":lt,"vesivahinko_h":vv,
+                      "yht_h":yh,"tuntikust_eur":yh*tuntihinta,"jate_eur":jt,"kalusto_eur":kl,
+                      "kaikki_yht_eur":yh*tuntihinta+jt+kl,"tuntihinta":tuntihinta}
+                viikot = sorted([v for v in viikot if v["viikko"]!=int(uv)]+[u], key=lambda v:v["viikko"])
+                st.session_state["tuntiseuranta"] = viikot
+                tallenna_tuntiseuranta(projekti, viikot)
+                st.success(f"Viikko {uv} tallennettu!")
+                st.rerun()
 
     if viikot:
         df_t = pd.DataFrame(viikot)
@@ -441,13 +446,14 @@ with tab_tunnit:
             "Kalusto(€)":df_t["kalusto_eur"].sum(),"KAIKKI YHT.(€)":df_t["kaikki_yht_eur"].sum()}])
         st.dataframe(pd.concat([n,yr],ignore_index=True), width="stretch", hide_index=True)
         st.caption(f"Tuntiveloitus: {tuntihinta} €/h")
-        with st.expander("🗑️ Poista viikko"):
-            pv = st.selectbox("Viikko",[v["viikko"] for v in viikot],key="pvk")
-            if st.button("Poista",type="secondary",key="pvkb"):
-                viikot=[v for v in viikot if v["viikko"]!=pv]
-                st.session_state["tuntiseuranta"]=viikot
-                tallenna_tuntiseuranta(projekti,viikot)
-                st.rerun()
+        if voi_muokata:
+            with st.expander("🗑️ Poista viikko"):
+                pv = st.selectbox("Viikko",[v["viikko"] for v in viikot],key="pvk")
+                if st.button("Poista",type="secondary",key="pvkb"):
+                    viikot=[v for v in viikot if v["viikko"]!=pv]
+                    st.session_state["tuntiseuranta"]=viikot
+                    tallenna_tuntiseuranta(projekti,viikot)
+                    st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ALI-TUNTIKIRJA
@@ -464,46 +470,47 @@ with tab_ali_tunnit:
 
     st.info("ℹ️ Netvisor ei tue aliurakoitsijoiden tuntikirjanpitoa — tunnit syötetään käsin.")
 
-    with st.expander("➕ Lisää tuntikirjaus", expanded=len(ali_rivit)==0):
-        a1,a2 = st.columns(2)
-        av  = a1.number_input("Viikko",1,53,int(date.today().strftime("%V")),key="av")
-        an  = a1.text_input("Työntekijän nimi",key="an")
-        ay  = a1.text_input("Yritys",key="ay")
-        akat= a1.selectbox("Kategoria",["Urakka","Lisätyö","Vesivahinko"],key="akat")
-        a2.markdown("**Tunnit (h) päivittäin**")
-        d1,d2,d3,d4 = a2.columns(4)
-        ama=d1.number_input("Ma",0.0,24.0,0.0,0.5,key="ama")
-        ati=d2.number_input("Ti",0.0,24.0,0.0,0.5,key="ati")
-        ake=d3.number_input("Ke",0.0,24.0,0.0,0.5,key="ake")
-        ato=d4.number_input("To",0.0,24.0,0.0,0.5,key="ato")
-        d5,d6,d7,_ = a2.columns(4)
-        ape=d5.number_input("Pe",0.0,24.0,0.0,0.5,key="ape")
-        ala=d6.number_input("La",0.0,24.0,0.0,0.5,key="ala")
-        asu=d7.number_input("Su",0.0,24.0,0.0,0.5,key="asu")
-        ayht = ama+ati+ake+ato+ape+ala+asu
-        a2.metric("Yhteensä",f"{ayht:.1f} h")
-        b1,b2,b3 = st.columns(3)
-        alk = b1.selectbox("Laskutustapa",["Vain tunnit","Tuntihinta (€/h)","Kiinteä hinta (€)"],key="alk")
-        ath,akh = None,None
-        if alk=="Tuntihinta (€/h)":
-            ath = b2.number_input("€/h",0.0,step=1.0,value=38.0,key="ath")
-            b2.caption(f"Summa: {ayht*ath:,.2f} €")
-        elif alk=="Kiinteä hinta (€)":
-            akh = b2.number_input("Kiinteä hinta (€)",0.0,step=10.0,key="akh")
-        ahu = b3.text_input("Huomio",key="ahu")
-        if st.button("Tallenna kirjaus",type="primary",key="atall"):
-            if not an:
-                st.error("Syötä nimi.")
-            else:
-                lm={"Vain tunnit":"tunnit","Tuntihinta (€/h)":"tuntihinta","Kiinteä hinta (€)":"kiintea"}
-                u={"id":f"{av}_{an}_{ay}".replace(" ","_"),"viikko":int(av),"nimi":an,"yritys":ay,
-                   "ma":ama,"ti":ati,"ke":ake,"to":ato,"pe":ape,"la":ala,"su":asu,"yht_h":ayht,
-                   "kategoria":akat,"laskutustapa":lm[alk],"tuntihinta":ath,"kiintea_hinta":akh,"huomio":ahu}
-                ali_rivit.append(u)
-                st.session_state["ali_tunnit"]=ali_rivit
-                tallenna_ali_tunnit(projekti,ali_rivit)
-                st.success(f"Tallennettu: {an} vko {av} – {ayht:.1f} h")
-                st.rerun()
+    if voi_muokata:
+        with st.expander("➕ Lisää tuntikirjaus", expanded=len(ali_rivit)==0):
+            a1,a2 = st.columns(2)
+            av  = a1.number_input("Viikko",1,53,int(date.today().strftime("%V")),key="av")
+            an  = a1.text_input("Työntekijän nimi",key="an")
+            ay  = a1.text_input("Yritys",key="ay")
+            akat= a1.selectbox("Kategoria",["Urakka","Lisätyö","Vesivahinko"],key="akat")
+            a2.markdown("**Tunnit (h) päivittäin**")
+            d1,d2,d3,d4 = a2.columns(4)
+            ama=d1.number_input("Ma",0.0,24.0,0.0,0.5,key="ama")
+            ati=d2.number_input("Ti",0.0,24.0,0.0,0.5,key="ati")
+            ake=d3.number_input("Ke",0.0,24.0,0.0,0.5,key="ake")
+            ato=d4.number_input("To",0.0,24.0,0.0,0.5,key="ato")
+            d5,d6,d7,_ = a2.columns(4)
+            ape=d5.number_input("Pe",0.0,24.0,0.0,0.5,key="ape")
+            ala=d6.number_input("La",0.0,24.0,0.0,0.5,key="ala")
+            asu=d7.number_input("Su",0.0,24.0,0.0,0.5,key="asu")
+            ayht = ama+ati+ake+ato+ape+ala+asu
+            a2.metric("Yhteensä",f"{ayht:.1f} h")
+            b1,b2,b3 = st.columns(3)
+            alk = b1.selectbox("Laskutustapa",["Vain tunnit","Tuntihinta (€/h)","Kiinteä hinta (€)"],key="alk")
+            ath,akh = None,None
+            if alk=="Tuntihinta (€/h)":
+                ath = b2.number_input("€/h",0.0,step=1.0,value=38.0,key="ath")
+                b2.caption(f"Summa: {ayht*ath:,.2f} €")
+            elif alk=="Kiinteä hinta (€)":
+                akh = b2.number_input("Kiinteä hinta (€)",0.0,step=10.0,key="akh")
+            ahu = b3.text_input("Huomio",key="ahu")
+            if st.button("Tallenna kirjaus",type="primary",key="atall"):
+                if not an:
+                    st.error("Syötä nimi.")
+                else:
+                    lm={"Vain tunnit":"tunnit","Tuntihinta (€/h)":"tuntihinta","Kiinteä hinta (€)":"kiintea"}
+                    u={"id":f"{av}_{an}_{ay}".replace(" ","_"),"viikko":int(av),"nimi":an,"yritys":ay,
+                       "ma":ama,"ti":ati,"ke":ake,"to":ato,"pe":ape,"la":ala,"su":asu,"yht_h":ayht,
+                       "kategoria":akat,"laskutustapa":lm[alk],"tuntihinta":ath,"kiintea_hinta":akh,"huomio":ahu}
+                    ali_rivit.append(u)
+                    st.session_state["ali_tunnit"]=ali_rivit
+                    tallenna_ali_tunnit(projekti,ali_rivit)
+                    st.success(f"Tallennettu: {an} vko {av} – {ayht:.1f} h")
+                    st.rerun()
 
     if ali_rivit:
         vl = sorted(set(r["viikko"] for r in ali_rivit),reverse=True)
@@ -535,14 +542,15 @@ with tab_ali_tunnit:
             nm=f"Ali-tuntikirja_vko{vv}_{(projekti or 'P').replace(' ','_').replace(',','')}.xlsx"
             st.download_button("⬇️ Lataa Excel-raportti",data=x,file_name=nm,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        with st.expander("🗑️ Poista kirjaus"):
-            va={f"vko{r['viikko']} – {r['nimi']} ({r.get('yritys','')}) – {r.get('yht_h',0):.1f}h":r["id"] for r in ali_rivit}
-            pl=st.selectbox("Kirjaus",list(va.keys()),key="apl")
-            if st.button("Poista",type="secondary",key="apb"):
-                ali_rivit=[r for r in ali_rivit if r["id"]!=va[pl]]
-                st.session_state["ali_tunnit"]=ali_rivit
-                tallenna_ali_tunnit(projekti,ali_rivit)
-                st.rerun()
+        if voi_muokata:
+            with st.expander("🗑️ Poista kirjaus"):
+                va={f"vko{r['viikko']} – {r['nimi']} ({r.get('yritys','')}) – {r.get('yht_h',0):.1f}h":r["id"] for r in ali_rivit}
+                pl=st.selectbox("Kirjaus",list(va.keys()),key="apl")
+                if st.button("Poista",type="secondary",key="apb"):
+                    ali_rivit=[r for r in ali_rivit if r["id"]!=va[pl]]
+                    st.session_state["ali_tunnit"]=ali_rivit
+                    tallenna_ali_tunnit(projekti,ali_rivit)
+                    st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PALKKAKUSTANNUKSET
@@ -563,24 +571,25 @@ with tab_palkat:
         st.info("Lähetä esimerkkitiedosto → rakennetaan automaattituonti.\n"
                 "Netvisor → Palkka → Palkkakirjanpito → vie Exceliin")
 
-    with st.expander("➕ Lisää palkkajakso", expanded=len(palkat)==0):
-        p1,p2=st.columns(2)
-        ppv = p1.date_input("Palkanmaksupäivä",value=date.today(),key="ppv")
-        pts = p1.number_input("Tosite nro",min_value=1,step=1,key="pts")
-        psl = p1.text_input("Selite",placeholder="esim. Palkkayhteenveto 11.5.–24.5.2026",key="psl")
-        pkt = p1.selectbox("Kategoria",["Urakka","Lisätyö","Vesivahinko"],key="pkt")
-        pbr = p2.number_input("Bruttopalkka (€)",0.0,step=0.01,key="pbr")
-        pke = p2.number_input("Sivukulukerroin",value=float(sivukulukerroin),step=0.05,key="pke")
-        p2.metric("Kokonaiskustannus",f"{pbr*pke:,.2f} €")
-        p2.caption("= bruttopalkka × sivukulukerroin")
-        if st.button("Tallenna palkkajakso",type="primary",key="ptall"):
-            u={"id":f"{ppv}_{pts}","pvm":str(ppv),"tosite":int(pts),"selite":psl,
-               "kategoria":pkt,"brutto":pbr,"kerroin":pke,"kokonaiskust":pbr*pke}
-            palkat.append(u)
-            st.session_state["palkat"]=palkat
-            tallenna_palkat(projekti,palkat)
-            st.success("Palkkajakso tallennettu!")
-            st.rerun()
+    if voi_muokata:
+        with st.expander("➕ Lisää palkkajakso", expanded=len(palkat)==0):
+            p1,p2=st.columns(2)
+            ppv = p1.date_input("Palkanmaksupäivä",value=date.today(),key="ppv")
+            pts = p1.number_input("Tosite nro",min_value=1,step=1,key="pts")
+            psl = p1.text_input("Selite",placeholder="esim. Palkkayhteenveto 11.5.–24.5.2026",key="psl")
+            pkt = p1.selectbox("Kategoria",["Urakka","Lisätyö","Vesivahinko"],key="pkt")
+            pbr = p2.number_input("Bruttopalkka (€)",0.0,step=0.01,key="pbr")
+            pke = p2.number_input("Sivukulukerroin",value=float(sivukulukerroin),step=0.05,key="pke")
+            p2.metric("Kokonaiskustannus",f"{pbr*pke:,.2f} €")
+            p2.caption("= bruttopalkka × sivukulukerroin")
+            if st.button("Tallenna palkkajakso",type="primary",key="ptall"):
+                u={"id":f"{ppv}_{pts}","pvm":str(ppv),"tosite":int(pts),"selite":psl,
+                   "kategoria":pkt,"brutto":pbr,"kerroin":pke,"kokonaiskust":pbr*pke}
+                palkat.append(u)
+                st.session_state["palkat"]=palkat
+                tallenna_palkat(projekti,palkat)
+                st.success("Palkkajakso tallennettu!")
+                st.rerun()
 
     if not palkat:
         st.info("Ei palkkajaksoja. Lisää yllä.")
@@ -599,14 +608,15 @@ with tab_palkat:
             n.columns=["Pvm","Tosite","Selite","Brutto (€)","Kerroin","Kokonaiskust. (€)","Kategoria"]
             st.dataframe(n,width="stretch",hide_index=True)
         st.markdown(f"**YHTEENSÄ — Brutto: {EURO(df_p['brutto'].sum())} | Kokonaiskust.: {EURO(df_p['kokonaiskust'].sum())}**")
-        with st.expander("🗑️ Poista palkkajakso"):
-            va={f"{r['pvm']} – {r['selite']} – {r['brutto']:.2f}€":r["id"] for r in palkat}
-            pl=st.selectbox("Jakso",list(va.keys()),key="ppl")
-            if st.button("Poista",type="secondary",key="ppb"):
-                palkat=[r for r in palkat if r["id"]!=va[pl]]
-                st.session_state["palkat"]=palkat
-                tallenna_palkat(projekti,palkat)
-                st.rerun()
+        if voi_muokata:
+            with st.expander("🗑️ Poista palkkajakso"):
+                va={f"{r['pvm']} – {r['selite']} – {r['brutto']:.2f}€":r["id"] for r in palkat}
+                pl=st.selectbox("Jakso",list(va.keys()),key="ppl")
+                if st.button("Poista",type="secondary",key="ppb"):
+                    palkat=[r for r in palkat if r["id"]!=va[pl]]
+                    st.session_state["palkat"]=palkat
+                    tallenna_palkat(projekti,palkat)
+                    st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # OSTOT — oma tuonti
@@ -805,7 +815,7 @@ with tab_viranomainen:
         else:
             st.markdown("**Täydennä/korjaa Y-tunnukset ja yhteyshenkilöt:**")
             muokattu = st.data_editor(
-                df_u, width="stretch", hide_index=True, key="u_editor",
+                df_u, width="stretch", hide_index=True, key="u_editor", disabled=not voi_muokata,
                 column_config={
                     "Toimittaja": st.column_config.TextColumn("Toimittaja", width="medium"),
                     "Y-tunnus": st.column_config.TextColumn("Y-tunnus"),
@@ -815,7 +825,7 @@ with tab_viranomainen:
                 })
 
             b1, b2, b3 = st.columns(3)
-            if b1.button("💾 Tallenna Y-tunnukset", key="u_tall"):
+            if voi_muokata and b1.button("💾 Tallenna Y-tunnukset", key="u_tall"):
                 for _, rv in muokattu.iterrows():
                     t = rv["Toimittaja"]
                     if t and not t.startswith("("):

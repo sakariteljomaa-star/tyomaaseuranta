@@ -139,6 +139,15 @@ avain `kayttajat`). Salasanat PBKDF2-HMAC-SHA256, 100k kierrosta, satunnainen su
 | `tyontekija` | 🚫 estetty (palkkatiedot) | ✅ omat tunnit, sallitut projektit | 📱 QR |
 
 - **Ensikäynnistys:** kun rekisteri tyhjä, sovellus pyytää luomaan pääkäyttäjän (admin).
+- **Katselija = vain luku:** tallennus/poisto vain `A.voi_hyvaksya(rooli)` (admin + TJ).
+  Uusiin tallennus- ja poistotoimintoihin AINA tämä ehto (`app.py`: `voi_muokata`,
+  `kalusto_app.py`: `on_tj`). Kaluston hallintanäkymä ei työntekijälle (vain QR).
+- **Kirjautumisen suojaus (auth.py):** salasana väh. 8 merkkiä (`MIN_SALASANA`), 5 väärää
+  yritystä → 15 min lukitus (globaali `kirjautumisyritykset`), sama virheviesti kaikissa
+  tapauksissa, avoin istunto tarkistetaan rekisteristä 30 s välein, viimeistä adminia ei voi
+  alentaa/passivoida. `paivita_kayttaja` palauttaa `(ok, viesti)`.
+- **Välilehtilohkot:** roolin mukaan piilotettava välilehti on `None` → lohko AINA
+  `if tab_x is not None:` -ehtoon (muuten `AttributeError: __enter__`).
 - **Hyväksyntä lukitsee:** kun TJ hyväksyy viikon tunnit, työntekijä ei voi enää muokata
   (`_on_lukittu`). Vain TJ/admin voi palauttaa tilan.
 - **QR-skannaus on julkinen** (kalusto) — työmies ei tarvitse kirjautumista.
@@ -156,7 +165,7 @@ globaali_data (avain text primary key, data jsonb)
 ```
 Projektikohtainen data → `projekti_data` (ali_tunnit, tuntiseuranta, palkat, yhteenveto;
 asbesti: `cateva_<työnumero>` → asbesti_dok, asbesti_ilmoitukset).
-Globaali data → `globaali_data` (kayttajat, projektirekisteri, ammattinimikkeet,
+Globaali data → `globaali_data` (kayttajat, kirjautumisyritykset, projektirekisteri, ammattinimikkeet,
 kalusto_laitteet, kalusto_tapahtumat, cateva_kohteet, asbesti_patevyydet,
 labroc_kasitellyt).
 

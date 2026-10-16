@@ -143,10 +143,10 @@ vakiosopimuslausekkeet (SCC). **Tila:** varmistettavana, toimenpide T1.
 | **Tarkoitus** | Pääsynhallinta, tietoturva, väärinkäytösten selvittäminen |
 | **Oikeusperuste** | 6.1 f oikeutettu etu; 32 art. tietoturvavelvoite |
 | **Rekisteröidyt** | Järjestelmän käyttäjät |
-| **Tietoryhmät** | Käyttäjätunnus, nimi, rooli, salasanan tiiviste, sallitut projektit; lokiin: toiminto, kohde, aikaleima |
+| **Tietoryhmät** | Käyttäjätunnus, nimi, rooli, salasanan tiiviste, sallitut projektit; lokiin: toiminto, kohde, aikaleima; epäonnistuneet kirjautumiset: syötetty tunnus, yritysten määrä, aikaleima, lukituksen päättyminen |
 | **Vastaanottajat** | Ei luovutuksia |
-| **Säilytysaika** | Tunnukset: käyttöoikeuden päättyminen + 6 kk; loki: 2 vuotta |
-| **Sovellus / tallennus** | Kaikki sovellukset; Supabase `globaali_data` (kayttajat), `loki` |
+| **Säilytysaika** | Tunnukset: käyttöoikeuden päättyminen + 6 kk; loki: 2 vuotta; epäonnistuneet kirjautumiset: 24 h (karsitaan automaattisesti) |
+| **Sovellus / tallennus** | Kaikki sovellukset; Supabase `globaali_data` (kayttajat, kirjautumisyritykset), `loki` |
 
 ---
 
@@ -155,3 +155,4 @@ vakiosopimuslausekkeet (SCC). **Tila:** varmistettavana, toimenpide T1.
 | Päivä | Muutos |
 |---|---|
 | 15.10.2026 | Ensimmäinen versio (KT1–KT8). Terveystarkastustiedot rajattu työnjohdolle (T3). |
+| 16.10.2026 | KT8: kirjautumisyritysten rajoitus (lukitus 5 yrityksen jälkeen, säilytys 24 h). |

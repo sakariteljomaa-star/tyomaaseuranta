@@ -220,6 +220,16 @@ rooli    = kayttaja["rooli"]
 on_tj    = A.voi_hyvaksya(rooli)            # admin + työnjohtaja
 on_admin = A.voi_hallita_kayttajia(rooli)   # vain admin
 
+# Työntekijä käyttää kalustoa QR-koodin kautta — hallintanäkymä vain työnjohdolle ja katselijalle
+if rooli == "tyontekija":
+    st.title("📱 Kalustoseuranta")
+    st.info("Työntekijänä kirjaat kaluston liikkeet skannaamalla laitteen QR-koodin "
+            "puhelimella — kirjautumista ei tarvita. Hallintanäkymä on vain työnjohdolle.")
+    if st.button("🔓 Kirjaudu ulos"):
+        A.kirjaudu_ulos()
+        st.rerun()
+    st.stop()
+
 if Path(_LOGO).exists():
     st.image(_LOGO, width=280)
 st.title("🔧 Kalustoseuranta — Hallinta")
@@ -237,13 +247,16 @@ try:
 except Exception:
     app_url = "http://localhost:8503"
 
-valilehti_nimet = ["📊 Tilannekuva", "📱 QR-koodit", "🔧 Laiterekisteri",
-                   "📥 Tuo Excel", "📋 Tapahtumahistoria"]
+# Katselija: vain luku — ei tuontia eikä muokkausta
+valilehti_nimet = ["📊 Tilannekuva", "📱 QR-koodit", "🔧 Laiterekisteri", "📋 Tapahtumahistoria"]
+if on_tj:
+    valilehti_nimet.append("📥 Tuo Excel")
 if on_admin:
     valilehti_nimet.append("👤 Käyttäjät")
 _vl = st.tabs(valilehti_nimet)
-tab_yht, tab_qr, tab_laitteet, tab_tuo, tab_historia = _vl[0], _vl[1], _vl[2], _vl[3], _vl[4]
-tab_kayttajat = _vl[5] if on_admin else None
+tab_yht, tab_qr, tab_laitteet, tab_historia = _vl[0], _vl[1], _vl[2], _vl[3]
+tab_tuo = _vl[4] if on_tj else None
+tab_kayttajat = _vl[-1] if on_admin else None
 
 # ── TILANNEKUVA ───────────────────────────────────────────────────────────────
 with tab_yht:
@@ -353,9 +366,10 @@ with tab_laitteet:
         st.info("Tuo laiterekisteri Excel-välilehdeltä.")
     else:
         df_l = pd.DataFrame(laitteet)
-        # Muokkaus
-        muokattava = st.selectbox("Muokkaa laitteen tietoja", [l["nro"] for l in laitteet], key="ml_nro")
-        ml = _hae_laite(muokattava, laitteet)
+        # Muokkaus (vain työnjohto)
+        muokattava = (st.selectbox("Muokkaa laitteen tietoja", [l["nro"] for l in laitteet], key="ml_nro")
+                      if on_tj else None)
+        ml = _hae_laite(muokattava, laitteet) if on_tj else None
         if ml:
             m1, m2 = st.columns(2)
             ml_kunto  = m1.selectbox("Kunto", ["OK","Varoitus","Rikki","Huolto"],
@@ -377,47 +391,48 @@ with tab_laitteet:
         st.dataframe(pd.DataFrame(laitteet), width="stretch", hide_index=True)
 
 # ── TUO EXCEL ─────────────────────────────────────────────────────────────────
-with tab_tuo:
-    st.subheader("📥 Tuo laiterekisteri Excel-tiedostosta")
-    st.caption("Hyväksyy Kalustonhallinta-XLSX:n sellaisenaan — tunnistaa AP-, IH-, ES- jne. tunnukset automaattisesti.")
+if tab_tuo is not None:
+  with tab_tuo:
+      st.subheader("📥 Tuo laiterekisteri Excel-tiedostosta")
+      st.caption("Hyväksyy Kalustonhallinta-XLSX:n sellaisenaan — tunnistaa AP-, IH-, ES- jne. tunnukset automaattisesti.")
 
-    xlsx_f = st.file_uploader("Kalustonhallinta .xlsx", type=["xlsx"], key="kalusto_xlsx")
-    if xlsx_f:
-        uudet = lue_kalustorekisteri(xlsx_f)
-        st.success(f"Löydettiin {len(uudet)} laitetta.")
-        st.dataframe(pd.DataFrame(uudet), width="stretch", hide_index=True)
-        if st.button("✅ Tallenna rekisteriin", type="primary", key="kalusto_tall"):
-            # Säilytä olemassa olevien laitteiden kunto- ja sijaintitiedot
-            vanhat = {l["nro"]: l for l in laitteet}
-            for u in uudet:
-                if u["nro"] in vanhat:
-                    u["kunto"]   = vanhat[u["nro"]].get("kunto", "OK")
-                    u["sijainti"] = vanhat[u["nro"]].get("sijainti", "Varasto")
-            tallenna_laitteet(uudet)
-            st.success(f"✅ {len(uudet)} laitetta tallennettu rekisteriin!")
-            st.rerun()
+      xlsx_f = st.file_uploader("Kalustonhallinta .xlsx", type=["xlsx"], key="kalusto_xlsx")
+      if xlsx_f:
+          uudet = lue_kalustorekisteri(xlsx_f)
+          st.success(f"Löydettiin {len(uudet)} laitetta.")
+          st.dataframe(pd.DataFrame(uudet), width="stretch", hide_index=True)
+          if st.button("✅ Tallenna rekisteriin", type="primary", key="kalusto_tall"):
+              # Säilytä olemassa olevien laitteiden kunto- ja sijaintitiedot
+              vanhat = {l["nro"]: l for l in laitteet}
+              for u in uudet:
+                  if u["nro"] in vanhat:
+                      u["kunto"]   = vanhat[u["nro"]].get("kunto", "OK")
+                      u["sijainti"] = vanhat[u["nro"]].get("sijainti", "Varasto")
+              tallenna_laitteet(uudet)
+              st.success(f"✅ {len(uudet)} laitetta tallennettu rekisteriin!")
+              st.rerun()
 
-    st.divider()
-    st.subheader("➕ Lisää laite käsin")
-    n1, n2 = st.columns(2)
-    n_nro   = n1.text_input("Laitetunnus (esim. AP-021)", key="n_nro").upper()
-    n_kat   = n1.text_input("Kategoria", placeholder="esim. Alipaineistaja", key="n_kat")
-    n_laite = n1.text_input("Laite / Malli", placeholder="esim. Pullman A600U", key="n_laite")
-    n_sn    = n2.text_input("Sarjanumero", key="n_sn")
-    n_hm    = n2.text_input("Huomiot", key="n_hm")
-    n_omist = n2.selectbox("Omistus", ["oma","vuokra"], key="n_omist")
-    if st.button("Lisää laite", type="primary", key="n_lisaa"):
-        if not n_nro or not n_laite:
-            st.error("Syötä laitetunnus ja laite.")
-        elif any(l["nro"] == n_nro for l in laitteet):
-            st.error(f"{n_nro} on jo rekisterissä.")
-        else:
-            laitteet.append({"nro":n_nro,"kategoria":n_kat,"laite":n_laite,
-                              "merkki":"","sarjanumero":n_sn,"kunto":"OK",
-                              "sijainti":"Varasto","huomiot":n_hm,"omistus":n_omist})
-            tallenna_laitteet(laitteet)
-            st.success(f"✅ {n_nro} lisätty!")
-            st.rerun()
+      st.divider()
+      st.subheader("➕ Lisää laite käsin")
+      n1, n2 = st.columns(2)
+      n_nro   = n1.text_input("Laitetunnus (esim. AP-021)", key="n_nro").upper()
+      n_kat   = n1.text_input("Kategoria", placeholder="esim. Alipaineistaja", key="n_kat")
+      n_laite = n1.text_input("Laite / Malli", placeholder="esim. Pullman A600U", key="n_laite")
+      n_sn    = n2.text_input("Sarjanumero", key="n_sn")
+      n_hm    = n2.text_input("Huomiot", key="n_hm")
+      n_omist = n2.selectbox("Omistus", ["oma","vuokra"], key="n_omist")
+      if st.button("Lisää laite", type="primary", key="n_lisaa"):
+          if not n_nro or not n_laite:
+              st.error("Syötä laitetunnus ja laite.")
+          elif any(l["nro"] == n_nro for l in laitteet):
+              st.error(f"{n_nro} on jo rekisterissä.")
+          else:
+              laitteet.append({"nro":n_nro,"kategoria":n_kat,"laite":n_laite,
+                                "merkki":"","sarjanumero":n_sn,"kunto":"OK",
+                                "sijainti":"Varasto","huomiot":n_hm,"omistus":n_omist})
+              tallenna_laitteet(laitteet)
+              st.success(f"✅ {n_nro} lisätty!")
+              st.rerun()
 
 # ── TAPAHTUMAHISTORIA ─────────────────────────────────────────────────────────
 with tab_historia:

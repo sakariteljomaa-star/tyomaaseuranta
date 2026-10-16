@@ -43,6 +43,15 @@ GitHubiin, koodiin eikä kuvakaappauksiin. Vain Streamlitin Secrets-kenttään.
 - Tallennetaan **PBKDF2-HMAC-SHA256**, 100 000 kierrosta, satunnainen suola per käyttäjä.
 - Selkokielistä salasanaa ei tallenneta minnekään — vain hash.
 - Salasanaa ei voi "palauttaa" sellaisenaan; pääkäyttäjä asettaa uuden.
+- **Vähimmäispituus 8 merkkiä** (uudet ja vaihdetut salasanat; vanhat toimivat edelleen).
+- **Lukitus:** 5 väärää yritystä → tunnus lukittuu 15 minuutiksi kaikissa sovelluksissa.
+  Jokainen väärä yritys viivästyy 1 s. Admin näkee lukitut tunnukset 👤 Käyttäjät -välilehdellä
+  ja voi avata lukituksen. Lukitus kirjataan toimintalokiin.
+- **Yhtenäinen virheviesti** ("Väärä käyttäjätunnus tai salasana") — ei paljasta, onko tunnus olemassa.
+- **Avoin istunto tarkistetaan 30 s välein:** käytöstä poisto tai roolin muutos koskee
+  myös jo kirjautunutta käyttäjää.
+- **Viimeistä aktiivista pääkäyttäjää** ei voi poistaa, passivoida eikä alentaa. Omaa tunnusta
+  ei voi poistaa käytöstä.
 - **Pääkäyttäjän (admin) salasana on kriittisin** — ota se talteen turvalliseen paikkaan.
 
 ---
