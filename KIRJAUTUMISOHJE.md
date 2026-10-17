@@ -5,8 +5,8 @@ Kaikissa sovelluksissa on **sama käyttäjätunnus ja salasana**. Tunnuksen saat
 
 | Sovellus | Osoite | Kenelle |
 |---|---|---|
-| 👷 Tuntikirja | `https://<tuntikirjan-osoite>.streamlit.app` | työnjohto, työntekijät |
-| 💰 Kustannusseuranta | `https://<kustannusseurannan-osoite>.streamlit.app` | työnjohto, kirjanpito (ei työntekijät) |
+| 👷 Tuntikirja | https://uap-tuntikirjaus.streamlit.app | työnjohto, työntekijät |
+| 💰 Kustannusseuranta | https://uap-kustannus.streamlit.app | työnjohto, kirjanpito (ei työntekijät) |
 | ☣️ Asbestikohteet | https://uap-asbesti.streamlit.app | työnjohto, työntekijät |
 | 🔧 Kalustoseuranta | https://kalusto-uap.streamlit.app | työnjohto; työmaalla QR-koodi ilman kirjautumista |
 

@@ -214,7 +214,11 @@ kirjoitukset (virhe 42501). Avain VAIN Streamlit Secretsiin, ei koskaan GitHubii
 
 1. **[share.streamlit.io](https://share.streamlit.io)** → Create app
 2. Repository: `sakariteljomaa-star/tyomaaseuranta`, Branch: `main`
-3. Main file path: `app.py` / `ali_app.py` / `kalusto_app.py` (yksi app kustakin)
+3. Main file path: `app.py` / `ali_app.py` / `kalusto_app.py` / `asbesti_app.py` (yksi app kustakin)
+   Julkaistut osoitteet: `uap-kustannus` (app.py) · `uap-tuntikirjaus` (ali_app.py) ·
+   `kalusto-uap` (kalusto_app.py — ÄLÄ vaihda, QR-tarrat osoittavat tähän) · `uap-asbesti`
+   (asbesti_app.py), kaikki `.streamlit.app`. Osoitteen muutos → päivitä herätysajo
+   (`.github/workflows/streamlit-herate.yml`) ja KIRJAUTUMISOHJE.md.
 4. Advanced settings → Secrets:
 ```toml
 [supabase]

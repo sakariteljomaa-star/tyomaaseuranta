@@ -21,6 +21,8 @@ jobs:
       - name: Pingaa appit
         run: |
           APPIT=(
+            "https://uap-tuntikirjaus.streamlit.app"
+            "https://uap-kustannus.streamlit.app"
             "https://uap-asbesti.streamlit.app"
             "https://kalusto-uap.streamlit.app"
           )
