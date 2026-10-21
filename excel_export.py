@@ -10,10 +10,12 @@ from openpyxl.utils import get_column_letter
 
 
 # Värit
-OTSIKKO_TAUSTA = "1F3864"   # tumma sininen
+import brandi_tulosteet as BT
+
+OTSIKKO_TAUSTA = BT.PETROLI   # UAP Syväpetroli
 OTSIKKO_TEKSTI = "FFFFFF"
-ALAOTSIKKO_TAUSTA = "BDD7EE"
-SUMMA_TAUSTA = "D9E1F2"
+ALAOTSIKKO_TAUSTA = BT.HUURRE
+SUMMA_TAUSTA = BT.HUURRE_TUMMA
 KULULAJI_TAUSTA = "E2EFDA"   # vihreä – kululajiotsikko
 HARMAA = "F2F2F2"
 
@@ -27,7 +29,10 @@ def _otsikko(ws, rivi, teksti, sarakkeet=5):
     s.fill = PatternFill("solid", fgColor=OTSIKKO_TAUSTA)
     s.alignment = Alignment(horizontal="left", vertical="center")
     ws.merge_cells(start_row=rivi, start_column=1, end_row=rivi, end_column=sarakkeet)
-    ws.row_dimensions[rivi].height = 22
+    ws.row_dimensions[rivi].height = 24
+    if rivi == 1:
+        from openpyxl.utils import get_column_letter
+        BT.excel_logo(ws, f"{get_column_letter(sarakkeet)}{rivi}", 30)
 
 
 def _kenttaotsikot(ws, rivi, otsikot):

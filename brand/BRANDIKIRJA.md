@@ -69,7 +69,9 @@ Molemmat ovat SIL Open Font License -fontteja. Sovelluksissa ne tarjoillaan omis
 | Missä | Miten |
 |---|---|
 | Streamlit-sovellukset | Teema `.streamlit/config.toml` (värit + fontit), logo-otsikko ja favicon `brandi.py` |
-| PDF-asiakirjat | Merkki ja nimi yläkulmassa (`asbesti_dokumentit.py`) |
+| PDF-asiakirjat | Merkki ja nimi yläkulmassa: asbestidokumentit, tarjoukset, perehdytysmateriaali (`brandi_tulosteet.pdf_logo`) |
+| Excel-raportit | Merkki otsikkopalkissa + petroli/huurre-värit: viikkoraportti, kustannusseuranta, viranomaisilmoitukset (`brandi_tulosteet.excel_logo`) |
+| QR-konetarrat | Merkki keski- ja isoissa tarroissa (pienissä alle 8 mm:n minimikoon → ei merkkiä) |
 | Esitykset ja muu visuaalinen | Tämän kirjan paletti, fontit ja merkki |
 
 Jos merkki tai värit muuttuvat, vaihda tiedostot tähän kansioon samoilla nimillä. Sovellukset ja PDF:t

@@ -10,6 +10,8 @@ from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
+import brandi_tulosteet as BT
+
 
 # Tarrakoot (leveys × korkeus mm) — valittavissa
 TARRAKOOT = {
@@ -95,15 +97,19 @@ def luo_tarra_pdf(laitteet: list, app_url: str, koko_avain: str,
         # Laitenimi — pienempi, katkaistaan tarvittaessa
         nimi_koko = min(8, max(5, int(lh / mm / 4)))
         c.setFont("Helvetica", nimi_koko)
-        max_merkit = int(teksti_w / (nimi_koko * 0.5 * mm)) if teksti_w > 0 else 18
-        nimi_lyh = nimi if len(nimi) <= max_merkit else nimi[:max_merkit-1] + "…"
+        # Lyhennä nimi mahtumaan tekstialueelle (mitataan oikealla fontilla, pisteinä)
+        nimi_lyh = nimi
+        while nimi_lyh and c.stringWidth(nimi_lyh, "Helvetica", nimi_koko) > teksti_w:
+            nimi_lyh = nimi_lyh[:-2] + "…"
         c.drawString(teksti_x, y + lh - (tunnus_koko + nimi_koko + 8), nimi_lyh)
 
-        # Yritys alareunaan pienellä
+        # UAP-merkki alareunaan (painettu minimikoko 8 mm → vain keski- ja isot tarrat)
         if koko["h"] >= 34:
-            c.setFont("Helvetica", 4.5)
-            c.setFillColorRGB(0.5, 0.5, 0.5)
-            c.drawString(teksti_x, y + 2 * mm, yritys)
+            try:
+                merkki = 8 * mm if koko["h"] < 50 else 11 * mm
+                BT.pdf_logo(c, teksti_x, y + 2 * mm, merkki, nimi=False)
+            except Exception:
+                pass
 
     c.showPage()
     c.save()

@@ -47,6 +47,7 @@ Riippuvuudet: `pip install -r requirements.txt`
 | `perehdytys_dokumentit.py` | Työntekijän tietosuojailmoitus (fi/ru) + kaksikielinen tietolomake PDF:nä, esitäytetty työmaan tiedoilla (Tuntikirja → Viranomaisilmoitukset) |
 | `fonts/`             | DejaVu Sans (vapaa lisenssi) — kyrilliset merkit reportlab-PDF:iin. Älä korvaa Arialilla (ei saa jakaa) |
 | `brandi.py`          | UAP-brändi Streamlitiin: `sivun_asetukset()` (favicon) ja `ylatunniste()` (merkki + nimi) |
+| `brandi_tulosteet.py`| UAP-brändi tulosteisiin (ei Streamlitiä): `pdf_logo()` (reportlab), `excel_logo()` (openpyxl), paletti — käytä KAIKISSA uusissa PDF/Excel-tulosteissa |
 | `brand/`             | UAP-merkki 4c (SVG/PNG), `LOGO-OHJE.md`, **`BRANDIKIRJA.md`** — kaiken visuaalisen lähde |
 | `static/fonts/` + `.streamlit/config.toml` | Teema: brändivärit + Hanken Grotesk / IBM Plex Mono omista tiedostoista (static serving, ei Google Fontsia) |
 | `kalusto_app.py`     | Kalustoseuranta-UI + julkinen QR-skannausnäkymä              |

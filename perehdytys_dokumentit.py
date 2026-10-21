@@ -28,11 +28,14 @@ try:
 except Exception:  # fontti puuttuu → kyrilliset eivät näy, suomi toimii
     F, FB = "Helvetica", "Helvetica-Bold"
 
-TUMMA = colors.HexColor("#1F3864")
+import brandi_tulosteet as BT
+
+TUMMA = colors.HexColor("#" + BT.PETROLI)
+AKSENTTI = colors.HexColor("#" + BT.KLINIKKA)
 
 S_OTS   = ParagraphStyle("ots", fontName=FB, fontSize=14, leading=17, textColor=TUMMA, spaceAfter=2)
 S_ALA   = ParagraphStyle("ala", fontName=F, fontSize=9, leading=11, textColor=colors.grey, spaceAfter=8)
-S_H     = ParagraphStyle("h", fontName=FB, fontSize=11, leading=13.5, textColor=TUMMA,
+S_H     = ParagraphStyle("h", fontName=FB, fontSize=11, leading=13.5, textColor=AKSENTTI,
                          spaceBefore=7, spaceAfter=1)
 S_T     = ParagraphStyle("t", fontName=F, fontSize=10, leading=13, spaceAfter=2)
 S_PIENI = ParagraphStyle("p", fontName=F, fontSize=8, leading=10, textColor=colors.grey)
@@ -251,12 +254,26 @@ def _lomake(p: dict) -> list:
 
 # ── Julkiset funktiot ──────────────────────────────────────────────────────────
 
+def _sivupohja(c, doc):
+    """UAP-merkki + nimi jokaisen sivun yläreunaan, ohut erotinviiva alle."""
+    pw, ph = A4
+    try:
+        BT.pdf_logo(c, 14 * mm, ph - 19 * mm, 11 * mm, fontti=FB, fontti_kevyt=F)
+    except Exception:
+        pass
+    c.saveState()
+    c.setStrokeColor(colors.HexColor("#" + BT.HUURRE_TUMMA))
+    c.setLineWidth(0.6)
+    c.line(14 * mm, ph - 22 * mm, pw - 14 * mm, ph - 22 * mm)
+    c.restoreState()
+
+
 def _rakenna(elementit: list) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=14 * mm, rightMargin=14 * mm,
-                            topMargin=12 * mm, bottomMargin=12 * mm,
+                            topMargin=25 * mm, bottomMargin=10 * mm,
                             title="Perehdytys — tietosuoja", author="Uudenmaan Asbestipurku Oy")
-    doc.build(elementit)
+    doc.build(elementit, onFirstPage=_sivupohja, onLaterPages=_sivupohja)
     return buf.getvalue()
 
 

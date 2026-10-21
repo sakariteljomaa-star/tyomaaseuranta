@@ -13,6 +13,7 @@ voimassa oleva tietuekuvaus on varmistettu — älä lähetä kiinteämittaista
 tiedostoa tarkistamatta formaattia.
 """
 
+import brandi_tulosteet as BT
 import io
 from datetime import date, timedelta
 import pandas as pd
@@ -99,7 +100,9 @@ def tyontekijailmoitus_excel(df: pd.DataFrame, projekti_info: dict,
     ws.merge_cells("A1:M1")
     c = ws.cell(1, 1, "TYÖNTEKIJÄILMOITUS — Verohallinto (rakentamisen tiedonantovelvollisuus)")
     c.font = Font(bold=True, size=13, color="FFFFFF")
-    c.fill = PatternFill("solid", fgColor="1F3864")
+    c.fill = PatternFill("solid", fgColor=BT.PETROLI)
+    ws.row_dimensions[1].height = 26
+    BT.excel_logo(ws, "M1", 32)
 
     # Työmaan tiedot
     ws.merge_cells("A2:M2")
@@ -211,7 +214,9 @@ def urakkailmoitus_excel(df: pd.DataFrame, projekti_info: dict,
 
     ws.merge_cells("A1:E1")
     c = ws.cell(1, 1, "URAKKAILMOITUS — Verohallinto (rakentamisen tiedonantovelvollisuus)")
-    c.font = Font(bold=True, size=13, color="FFFFFF"); c.fill = PatternFill("solid", fgColor="1F3864")
+    c.font = Font(bold=True, size=13, color="FFFFFF"); c.fill = PatternFill("solid", fgColor=BT.PETROLI)
+    ws.row_dimensions[1].height = 26
+    BT.excel_logo(ws, "E1", 32)
     ws.merge_cells("A2:E2")
     ws.cell(2, 1, f"Työmaa: {projekti_info.get('nimi','')} | "
                   f"Tilaaja: {projekti_info.get('paatoteuttaja','')} "

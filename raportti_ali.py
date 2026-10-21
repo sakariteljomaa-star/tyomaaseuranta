@@ -4,6 +4,8 @@ Aliurakoitsijoiden viikkoraportti — ladattava Excel, tulostettavissa PDF:ksi.
 
 import io
 from datetime import date, timedelta
+
+import brandi_tulosteet as BT
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -15,8 +17,8 @@ MED  = Side(style="medium", color="444444")
 THIN_B = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 MED_B  = Border(left=MED,  right=MED,  top=MED,  bottom=MED)
 
-SININEN   = "1F3864"
-VAALEASIN = "BDD7EE"
+SININEN   = BT.PETROLI     # otsikot (UAP Syväpetroli)
+VAALEASIN = BT.HUURRE      # korostukset (UAP Huurre)
 VIHREA    = "E2EFDA"
 HARMAA    = "F2F2F2"
 KELTAINEN = "FFF2CC"
@@ -86,11 +88,12 @@ def luo_viikkoraportti(
 
     # ── Otsikkoalue ──────────────────────────────────────────────────────────
     ws.merge_cells(f"A{r}:N{r}")
-    c = ws.cell(r, 1, f"ALIURAKOITSIJOIDEN TUNTIKIRJA – {projekti.upper()}")
+    c = ws.cell(r, 1, f"TYÖMAAN TUNTIKIRJA – {projekti.upper()}")
     c.font = Font(bold=True, size=13, color="FFFFFF")
     c.fill = PatternFill("solid", fgColor=SININEN)
     c.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[r].height = 26
+    BT.excel_logo(ws, f"N{r}", 32)
     r += 1
 
     ws.merge_cells(f"A{r}:N{r}")
