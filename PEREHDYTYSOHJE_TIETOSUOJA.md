@@ -100,7 +100,7 @@ sopimusmalleista ennen käyttöä.]*
 |---|---|
 | *Miksi tarvitsette veronumeroni?* | Laki velvoittaa ilmoittamaan kaikki työmaalla olevat Verohallinnolle. Ilman veronumeroa et voi työskennellä rakennustyömaalla. |
 | *Kuka näkee tietoni?* | Vain meidän työnjohtomme. Muut työntekijät eivät näe tietojasi. Verohallinto saa kuukausi-ilmoituksen. |
-| *Voinko nähdä tietoni?* | Kyllä. Pyydä työnjohtajalta tai Sakari Teljomaalta (sakari.teljomaa@gmail.com). Vastaus kuukauden sisällä. |
+| *Voinko nähdä tietoni?* | Kyllä. Pyydä työnjohtajalta tai Sakari Teljomaalta (info@uudenmaanasbestipurku.fi). Vastaus kuukauden sisällä. |
 | *Voitteko poistaa tietoni?* | Verohallinnolle ilmoitettuja tietoja on säilytettävä 6 vuotta. Muut tiedot poistetaan, kun niitä ei enää tarvita. Virheelliset tiedot korjataan heti. |
 | *Tallennatteko terveystietojani?* | Emme. Kirjaamme vain, mihin asti terveystarkastuksesi on voimassa. |
 | *Lähtevätkö tietoni ulkomaille?* | Tiedot tallennetaan EU:ssa. Osa ohjelmistopalvelujen tarjoajista on yhdysvaltalaisia. |

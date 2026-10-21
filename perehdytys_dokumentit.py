@@ -40,7 +40,7 @@ S_LBL   = ParagraphStyle("lbl", fontName=FB, fontSize=7.5, leading=9)
 S_LBL2  = ParagraphStyle("lbl2", fontName=F, fontSize=7, leading=8.5, textColor=colors.grey)
 
 REKISTERINPITAJA = "Uudenmaan Asbestipurku Oy (Y-tunnus 2817254-1)"
-YHTEYSHENKILO = "Sakari Teljomaa, sakari.teljomaa@gmail.com"
+YHTEYSHENKILO = "Sakari Teljomaa, info@uudenmaanasbestipurku.fi"
 
 
 def _tyomaa_rivi(p: dict) -> str:

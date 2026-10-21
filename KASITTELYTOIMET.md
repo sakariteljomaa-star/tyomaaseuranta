@@ -1,7 +1,7 @@
 # Seloste käsittelytoimista — GDPR 30 artikla
 
 **Rekisterinpitäjä:** Uudenmaan Asbestipurku Oy (Y-tunnus 2817254-1)
-**Yhteyshenkilö:** Sakari Teljomaa, sakari.teljomaa@gmail.com
+**Yhteyshenkilö:** Sakari Teljomaa, info@uudenmaanasbestipurku.fi
 **Tietosuojavastaava:** ei nimitetty (ei lakisääteistä velvollisuutta, ks. GDPR_ARVIOINTI.md)
 **Laadittu:** 15.10.2026 · **Seuraava tarkistus:** viimeistään 10/2027 tai muutosten yhteydessä
 

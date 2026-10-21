@@ -9,7 +9,7 @@
 ## 1. Rekisterinpitäjä
 
 **Uudenmaan Asbestipurku Oy** (Y-tunnus 2817254-1)
-Yhteyshenkilö tietosuoja-asioissa: **Sakari Teljomaa**, sakari.teljomaa@gmail.com
+Yhteyshenkilö tietosuoja-asioissa: **Sakari Teljomaa**, info@uudenmaanasbestipurku.fi
 
 ## 2. Rekisterin nimi ja kattavuus
 
