@@ -46,6 +46,9 @@ Riippuvuudet: `pip install -r requirements.txt`
 | `verohallinto.py`    | Päätoteuttajan työntekijäilmoitus (Verohallinto): kokoaa kuukauden työmaalla olleet tuntikirjauksista + tekijöiden viranomaistiedot → Excel/CSV |
 | `perehdytys_dokumentit.py` | Työntekijän tietosuojailmoitus (fi/ru) + kaksikielinen tietolomake PDF:nä, esitäytetty työmaan tiedoilla (Tuntikirja → Viranomaisilmoitukset) |
 | `fonts/`             | DejaVu Sans (vapaa lisenssi) — kyrilliset merkit reportlab-PDF:iin. Älä korvaa Arialilla (ei saa jakaa) |
+| `brandi.py`          | UAP-brändi Streamlitiin: `sivun_asetukset()` (favicon) ja `ylatunniste()` (merkki + nimi) |
+| `brand/`             | UAP-merkki 4c (SVG/PNG), `LOGO-OHJE.md`, **`BRANDIKIRJA.md`** — kaiken visuaalisen lähde |
+| `static/fonts/` + `.streamlit/config.toml` | Teema: brändivärit + Hanken Grotesk / IBM Plex Mono omista tiedostoista (static serving, ei Google Fontsia) |
 | `kalusto_app.py`     | Kalustoseuranta-UI + julkinen QR-skannausnäkymä              |
 | `asbesti_app.py`     | Asbestikohteet-UI: kohteet + tilaaja, tilakone, dokumentointi |
 | `asbesti_dokumentit.py`| Turvallisuussuunnitelma-, ennakkoilmoitus-, raportti- ja tarjous-PDF:t (reportlab + pypdf) |
@@ -245,6 +248,10 @@ password = "...(Gmailin sovellussalasana)..."
 5. Deploy. Sama secret-avain kaikkiin kolmeen.
 
 ## 12. Konventiot
+
+- **Ilme:** UAP-brändisuunta 1a (vaalea), ks. `brand/BRANDIKIRJA.md`. Uudet näkymät: `brandi.ylatunniste()`
+  otsikon yläpuolelle, ei emojeja pääotsikoihin, värit teemasta. Alarivi "Dokumentoitu asbestipurku"
+  — EI "sertifioitu". Perustettu 2017.
 
 - Projektitiedoston nimi (paikallinen): `kohde_osoite.json` pienillä, alaviivat,
   ei ä/ö (esim. `valteri-koulu_tenholantie_15.json`).

@@ -216,7 +216,12 @@ def kirjaudu_gate(sovellus_nimi: str = "Työmaaseuranta") -> dict:
     # Lukuvirhe ≠ tyhjä rekisteri: älä tarjoa alkuasennusta, ettei uusi admin korvaa rekisteriä
     from storage import lukuvirhe
     if not kayttajat and lukuvirhe("kayttajat"):
-        st.title(f"🔒 {sovellus_nimi}")
+        try:
+            import brandi
+            brandi.ylatunniste()
+        except Exception:
+            pass
+        st.title(sovellus_nimi)
         st.error("Käyttäjärekisteriä ei saatu luettua — tietokantayhteys ei toimi juuri nyt. "
                  "Kirjautuminen ei ole mahdollista. Yritä hetken päästä uudelleen; jos vika "
                  "jatkuu, ilmoita pääkäyttäjälle.")
@@ -226,7 +231,12 @@ def kirjaudu_gate(sovellus_nimi: str = "Työmaaseuranta") -> dict:
 
     # ── Ensikäynnistys: luo pääkäyttäjä jos rekisteri tyhjä ────────────────
     if not kayttajat:
-        st.title(f"🔧 {sovellus_nimi} — alkuasennus")
+        try:
+            import brandi
+            brandi.ylatunniste()
+        except Exception:
+            pass
+        st.title(f"{sovellus_nimi} — alkuasennus")
         try:
             from storage import tallennustila
             if tallennustila() != "pilvi":
@@ -264,7 +274,12 @@ def kirjaudu_gate(sovellus_nimi: str = "Työmaaseuranta") -> dict:
         st.stop()
 
     # ── Normaali kirjautuminen ─────────────────────────────────────────────
-    st.title(f"🔒 {sovellus_nimi}")
+    try:
+        import brandi
+        brandi.ylatunniste()
+    except Exception:
+        pass
+    st.title(sovellus_nimi)
     st.caption("Kirjaudu sisään")
     with st.form("kirjautuminen"):
         tunnus = st.text_input("Käyttäjätunnus", placeholder="esim. etunimi.sukunimi")

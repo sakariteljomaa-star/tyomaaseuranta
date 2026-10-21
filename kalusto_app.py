@@ -81,21 +81,13 @@ TYYPPI_LABEL = {
 }
 
 # ── Sivun asetukset ────────────────────────────────────────────────────────────
-_LOGO = str(Path(__file__).parent / "logo.png")
-_FAVI = str(Path(__file__).parent / "favicon.png")
-st.set_page_config(page_title="Kalustoseuranta",
-                   page_icon=_FAVI if Path(_FAVI).exists() else "🔧", layout="wide")
-if Path(_LOGO).exists():
-    try:
-        st.logo(_LOGO, size="large")
-    except Exception:
-        pass
-st.markdown("<style>img[data-testid='stLogo']{height:3rem;}</style>", unsafe_allow_html=True)
+import brandi
+brandi.sivun_asetukset("Kalustoseuranta", "🔧")
 
 st.markdown("""
 <style>
     .laitekortti { border-radius:12px; padding:20px; margin:8px 0; }
-    .block-container { padding-top: 1rem; }
+    .block-container { padding-top: 3.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -112,9 +104,8 @@ tapahtumat = lataa_tapahtumat()
 if skannaus_nro:
     laite = _hae_laite(skannaus_nro, laitteet)
 
-    if Path(_LOGO).exists():
-        st.image(_LOGO, width=240)
-    st.title(f"🔧 {skannaus_nro}")
+    brandi.ylatunniste(48)
+    st.title(skannaus_nro)
 
     if not laite:
         st.error(f"Laitetta {skannaus_nro} ei löydy rekisteristä.")
@@ -222,7 +213,8 @@ on_admin = A.voi_hallita_kayttajia(rooli)   # vain admin
 
 # Työntekijä käyttää kalustoa QR-koodin kautta — hallintanäkymä vain työnjohdolle ja katselijalle
 if rooli == "tyontekija":
-    st.title("📱 Kalustoseuranta")
+    brandi.ylatunniste()
+    st.title("Kalustoseuranta")
     st.info("Työntekijänä kirjaat kaluston liikkeet skannaamalla laitteen QR-koodin "
             "puhelimella — kirjautumista ei tarvita. Hallintanäkymä on vain työnjohdolle.")
     if st.button("🔓 Kirjaudu ulos"):
@@ -230,9 +222,8 @@ if rooli == "tyontekija":
         st.rerun()
     st.stop()
 
-if Path(_LOGO).exists():
-    st.image(_LOGO, width=280)
-st.title("🔧 Kalustoseuranta — Hallinta")
+brandi.ylatunniste()
+st.title("Kalustoseuranta — Hallinta")
 st.caption(f"{kayttaja.get('nimi', kayttaja['tunnus'])}  ·  {A.ROOLIT[rooli]['nimi']}")
 
 with st.sidebar:

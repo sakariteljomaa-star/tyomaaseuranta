@@ -32,7 +32,8 @@ YRITYS = {
     "puhelin": "Puhelin: 044 300 9672",
 }
 
-_LOGO = Path(__file__).parent / "logo.png"
+# UAP-merkki (brand/LOGO-OHJE.md): merkki + nimi oikealla puolella
+_LOGO = Path(__file__).parent / "brand" / "png" / "uap-merkki-vari-512.png"
 
 # ── Tyylit ─────────────────────────────────────────────────────────────────────
 
@@ -74,12 +75,22 @@ def _numero_canvas_tehdas(otsikkorivit, alaotsikko):
         def _piirra_kehys(self, yhteensa):
             self.saveState()
             pw, ph = A4
-            # Logo vasempaan yläkulmaan
+            # Logo vasempaan yläkulmaan: merkki 14 mm + nimi (väli ¼ merkistä)
             if _LOGO.exists():
                 try:
-                    self.drawImage(str(_LOGO), 18 * mm, ph - 30 * mm,
-                                   width=48 * mm, height=15 * mm,
-                                   preserveAspectRatio=True, mask="auto", anchor="nw")
+                    koko = 14 * mm
+                    x0, y0 = 18 * mm, ph - 16 * mm - koko
+                    self.drawImage(str(_LOGO), x0, y0, width=koko, height=koko, mask="auto")
+                    xn = x0 + koko + koko / 4
+                    self.setFillColor(colors.HexColor("#14232A"))
+                    self.setFont("Helvetica-Bold", 10)
+                    self.drawString(xn, y0 + koko * 0.55, "Uudenmaan")
+                    self.drawString(xn, y0 + koko * 0.55 - 11, "Asbestipurku")
+                    leveys = self.stringWidth("Asbestipurku ", "Helvetica-Bold", 10)
+                    self.setFillColor(colors.HexColor("#7A888B"))
+                    self.setFont("Helvetica", 10)
+                    self.drawString(xn + leveys, y0 + koko * 0.55 - 11, "Oy")
+                    self.setFillColor(colors.black)
                 except Exception:
                     pass
             # Otsikko oikealle + sivunumero

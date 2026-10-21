@@ -18,22 +18,8 @@ from storage import (
 )
 from kansiotuonti import lue_kansio, oletus_kansio
 
-from pathlib import Path as _Path
-from PIL import Image as _Image
-_LOGO = str(_Path(__file__).parent / "logo.png")
-_FAVI = str(_Path(__file__).parent / "favicon.png")
-try:
-    _icon = _Image.open(_FAVI) if _Path(_FAVI).exists() else "🏗️"
-except Exception:
-    _icon = "🏗️"
-st.set_page_config(page_title="Työmaaseuranta", page_icon=_icon, layout="wide")
-if _Path(_LOGO).exists():
-    try:
-        st.logo(_LOGO, size="large")
-    except Exception:
-        pass
-# Isonna sivupalkin yläosan logoa
-st.markdown("<style>img[data-testid='stLogo']{height:3rem;}</style>", unsafe_allow_html=True)
+import brandi
+brandi.sivun_asetukset("Kustannusseuranta", "🏗️")
 
 # ── Käyttäjähallinta ja roolitukset ────────────────────────────────────────────
 import auth as A
@@ -45,7 +31,8 @@ voi_muokata = A.voi_hyvaksya(rooli)   # katselija: vain luku, ei tallennusta eik
 
 # Kustannusseuranta on arkaluonteinen — työntekijä-rooli ei pääse
 if rooli == "tyontekija":
-    st.title("🔒 Ei käyttöoikeutta")
+    brandi.ylatunniste()
+    st.title("Ei käyttöoikeutta")
     st.warning("Kustannusseuranta on tarkoitettu vain työnjohdolle ja kirjanpidolle. "
                "Käytä tuntikirja-sovellusta.")
     if st.button("🔓 Kirjaudu ulos"):
@@ -61,9 +48,8 @@ with st.sidebar:
         A.kirjaudu_ulos()
         st.rerun()
 
-if _Path(_LOGO).exists():
-    st.image(_LOGO, width=300)
-st.title("🏗️ Työmaaseuranta – Kustannusseuranta")
+brandi.ylatunniste()
+st.title("Kustannusseuranta")
 
 EURO   = lambda x: f"{x:,.2f} €".replace(",", " ").replace(".", ",")
 PAIVAT = ["ma","ti","ke","to","pe","la","su"]

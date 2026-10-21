@@ -300,19 +300,11 @@ def _ilmoitus_varoitus(kohde: dict) -> str:
 
 # ── Sivun asetukset ja kirjautuminen ───────────────────────────────────────────
 
-_LOGO = str(Path(__file__).parent / "logo.png")
-_FAVI = str(Path(__file__).parent / "favicon.png")
-st.set_page_config(page_title="Asbestikohteet",
-                   page_icon=_FAVI if Path(_FAVI).exists() else "☣️", layout="wide")
-if Path(_LOGO).exists():
-    try:
-        st.logo(_LOGO, size="large")
-    except Exception:
-        pass
+import brandi
+brandi.sivun_asetukset("Asbestikohteet", "☣️")
 st.markdown("""
 <style>
-    img[data-testid='stLogo']{height:3rem;}
-    .block-container { padding-top: 1rem; }
+    .block-container { padding-top: 3.5rem; }
     h1 { font-size: 1.5rem !important; }
     .stButton button { min-height: 2.6rem; }
 </style>
@@ -460,7 +452,8 @@ def nayta_dokumentointi(sallitut_kohteet: list):
 
 # Työntekijä näkee VAIN dokumentointinäkymän omista kohteistaan
 if on_tyontekija:
-    st.title(f"☣️ {tr('asb_title', kieli)}")
+    brandi.ylatunniste(48)
+    st.title(tr('asb_title', kieli))
     omat = [k for k in kohteet
             if kayttaja["tunnus"] in k.get("tyontekijat", [])
             and not k.get("raportti_lahetetty")]
@@ -472,7 +465,8 @@ if on_tyontekija:
 # TYÖNJOHDON NÄKYMÄT
 # ══════════════════════════════════════════════════════════════════════════════
 
-st.title("☣️ Asbestikohteet")
+brandi.ylatunniste()
+st.title("Asbestikohteet")
 st.caption("Uudenmaan Asbestipurku Oy · työnumero on kaiken avain")
 
 valilehti_nimet = ["📋 Kohteet", "💶 Tarjoukset", "📄 Ilmoitukset", "📸 Dokumentointi",

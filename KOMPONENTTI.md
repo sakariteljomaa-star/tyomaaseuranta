@@ -80,8 +80,10 @@ Nämä osat ovat uudelleenkäytettävissä tai yhtenäistettävissä muiden modu
 - MAC/SHA256-tunnistus + XML-parsinta (ostot, myynti, tuntikirjanpito).
 - **Tunnistuslogiikka uudelleenkäytettävissä** muissa talousmoduuleissa (laskutus, kirjanpito).
 
-### 5. Brändi — `logo.png` / `favicon.png`
-- `st.logo()` + favicon-koodi sama kaikissa sovelluksissa; kopioitavissa muihinkin moduuleihin.
+### 5. Brändi — `brand/`, `brandi.py`, `.streamlit/config.toml`
+- UAP-merkki (SVG/PNG) ja brändikirja `brand/BRANDIKIRJA.md`; teema (värit + omat fontit
+  `static/fonts/`) ja `brandi.sivun_asetukset()` / `brandi.ylatunniste()` kaikissa sovelluksissa;
+  kopioitavissa muihinkin moduuleihin.
 
 ---
 

@@ -1,0 +1,42 @@
+# UAP-brändi (suunta 1a "Puhdas", ks. brand/BRANDIKIRJA.md) kaikille neljälle sovellukselle.
+# EI salaisuuksia tähän — ne kuuluvat Streamlit Secretsiin.
+
+[server]
+# Fontit tarjoillaan sovelluksesta itsestään (static/fonts), ei Googlelta → ei kolmannen
+# osapuolen pyyntöjä käyttäjän selaimesta.
+enableStaticServing = true
+
+[theme]
+base = "light"
+primaryColor = "#1F7A73"              # Klinikka
+backgroundColor = "#F2F4F4"           # Luonnonvalko
+secondaryBackgroundColor = "#DDEAE8"  # Huurre
+textColor = "#14232A"                 # Syväpetroli
+linkColor = "#1F7A73"
+borderColor = "#C9D6D4"
+baseRadius = "0.6rem"
+font = "Hanken Grotesk, sans-serif"
+headingFont = "Hanken Grotesk, sans-serif"
+headingFontWeights = [800, 700, 600, 600, 600, 600]
+codeFont = "IBM Plex Mono, monospace"
+
+[[theme.fontFaces]]
+family = "Hanken Grotesk"
+url = "app/static/fonts/HankenGrotesk-latin.woff2"
+weight = "400 800"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "IBM Plex Mono"
+url = "app/static/fonts/IBMPlexMono-400-latin.woff2"
+weight = "400"
+
+[[theme.fontFaces]]
+family = "IBM Plex Mono"
+url = "app/static/fonts/IBMPlexMono-500-latin.woff2"
+weight = "500"
+
+[[theme.fontFaces]]
+family = "IBM Plex Mono"
+url = "app/static/fonts/IBMPlexMono-600-latin.woff2"
+weight = "600"

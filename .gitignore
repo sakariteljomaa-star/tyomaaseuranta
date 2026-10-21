@@ -17,5 +17,5 @@ __pycache__/
 # macOS
 .DS_Store
 
-# Streamlit local settings
-.streamlit/config.toml
+# .streamlit/config.toml (teema + fontit) on versionhallinnassa — ei salaisuuksia.
+# Salaisuudet vain secrets.toml:ään (rajattu yllä).

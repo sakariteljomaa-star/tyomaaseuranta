@@ -86,20 +86,8 @@ def _hae_projektit() -> list:
     return hae_projektit()
 
 # ── Sivun asetukset ────────────────────────────────────────────────────────────
-_LOGO = str(Path(__file__).parent / "logo.png")
-_FAVI = str(Path(__file__).parent / "favicon.png")
-st.set_page_config(
-    page_title="Tuntikirja",
-    page_icon=_FAVI if Path(_FAVI).exists() else "👷",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-if Path(_LOGO).exists():
-    try:
-        st.logo(_LOGO, size="large")
-    except Exception:
-        pass
-st.markdown("<style>img[data-testid='stLogo']{height:3rem;}</style>", unsafe_allow_html=True)
+import brandi
+brandi.sivun_asetukset("Tuntikirja", "👷", initial_sidebar_state="expanded")
 
 # ── Käyttäjähallinta ja kirjautuminen ──────────────────────────────────────────
 import random, string
@@ -213,9 +201,8 @@ with st.sidebar:
         oletus_kat = st.selectbox(tr("oletus_kat", kieli), KATEGORIAT, index=kat_idx)
 
 kieli = st.session_state.get("kieli", "fi")
-if Path(_LOGO).exists():
-    st.image(_LOGO, width=280)
-st.title(f"👷 {tr('app_title', kieli)}")
+brandi.ylatunniste()
+st.title(tr('app_title', kieli))
 st.caption(f"{A.ROOLIT[rooli]['nimi']}  ·  {projekti or '—'}")
 
 _tallenna_asetukset({"projekti": projekti, "vuosi": int(vuosi),
