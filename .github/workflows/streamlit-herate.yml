@@ -24,7 +24,7 @@ jobs:
             "https://uap-tuntikirjaus.streamlit.app"
             "https://uap-kustannus.streamlit.app"
             "https://uap-asbesti.streamlit.app"
-            "https://kalusto-uap.streamlit.app"
+            "https://uap-kalusto.streamlit.app"
           )
           for url in "${APPIT[@]}"; do
             code=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" \

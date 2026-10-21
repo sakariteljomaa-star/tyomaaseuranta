@@ -35,7 +35,7 @@ def luo_tarra_pdf(laitteet: list, app_url: str, koko_avain: str,
                   yritys: str = "Uudenmaan Asbestipurku Oy") -> bytes:
     """
     laitteet: list[dict] joissa 'nro' ja 'laite'
-    app_url:  esim. https://kalusto-uap.streamlit.app
+    app_url:  esim. https://uap-kalusto.streamlit.app
     koko_avain: avain TARRAKOOT-sanakirjasta
     """
     koko = TARRAKOOT.get(koko_avain, list(TARRAKOOT.values())[1])

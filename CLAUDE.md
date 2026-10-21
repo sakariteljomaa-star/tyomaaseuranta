@@ -216,7 +216,7 @@ kirjoitukset (virhe 42501). Avain VAIN Streamlit Secretsiin, ei koskaan GitHubii
 2. Repository: `sakariteljomaa-star/tyomaaseuranta`, Branch: `main`
 3. Main file path: `app.py` / `ali_app.py` / `kalusto_app.py` / `asbesti_app.py` (yksi app kustakin)
    Julkaistut osoitteet: `uap-kustannus` (app.py) · `uap-tuntikirjaus` (ali_app.py) ·
-   `kalusto-uap` (kalusto_app.py — ÄLÄ vaihda, QR-tarrat osoittavat tähän) · `uap-asbesti`
+   `uap-kalusto` (kalusto_app.py — QR-tarrat osoittavat tähän: muutos vaatii tarrojen uusinnan) · `uap-asbesti`
    (asbesti_app.py), kaikki `.streamlit.app`. Osoitteen muutos → päivitä herätysajo
    (`.github/workflows/streamlit-herate.yml`) ja KIRJAUTUMISOHJE.md.
 4. Advanced settings → Secrets:
@@ -226,7 +226,7 @@ url = "https://sxpnzyaafuhbsuolpfuc.supabase.co"
 key = "sb_secret_...secret-avain..."
 
 [kalusto]                                    # vain kalusto_app.py
-app_url = "https://<kaluston-osoite>.streamlit.app"
+app_url = "https://uap-kalusto.streamlit.app"
 
 [smtp]                                       # vain asbesti_app.py (raportin lähetys)
 host = "smtp.gmail.com"
