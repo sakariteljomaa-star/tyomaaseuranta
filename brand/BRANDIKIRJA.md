@@ -64,7 +64,26 @@ Tarkka geometria: [LOGO-OHJE.md](LOGO-OHJE.md).
 Molemmat ovat SIL Open Font License -fontteja. Sovelluksissa ne tarjoillaan omista tiedostoista
 (`static/fonts/`), ei Google Fontsista.
 
-## 4. Käyttö järjestelmässä
+## 4. Työvaatteet ja painotuotteet
+
+**Vaatteissa ja painotuotteissa on vain UAP-merkki.** Niissä ei ole yrityksen nimeä, sanaa
+"asbesti" eikä iskulausetta. Teemme paljon muutakin kuin asbestipurkua, ja sana herättää voimakkaita
+tunteita (Sakari 21.10.2026).
+
+Painovalmiit tiedostot ovat kansiossa `painatus/`. Ne generoidaan skriptillä `luo_painotiedostot.py`:
+
+| Tiedosto | Käyttö |
+|---|---|
+| `uap-merkki-{vari,petroli,musta,valkoinen,negatiivi}.pdf` | Vektori-PDF painatukseen |
+| `uap-merkki-brodeeraus-*.pdf/.svg` | Brodeeraus (pipot, lippikset, rintamerkit): kehys kaksinkertainen, pylväät ×1,45, kirjaimet vahvemmat. Pienin leveys 3,5 cm |
+| `uap-tarra-50mm.pdf`, `uap-tarra-80mm.pdf` | Tarrat, leikkuuviiva spot-värinä `CutContour` |
+| `UAP_tyovaatteet_painatusohje.pdf` | Toimittajalle: sijoitukset, koot, tiedostot, värit, EN ISO 20471 -huomiot |
+
+Mallisto: huomiovärinen T-paita (EN ISO 20471), musta puuvillainen T-paita (toimisto), huppari tai
+fleece (ei huomioväri), huomiovärinen talvitakki, pipo, lippis ja tarrat. Huomiovaatteissa käytetään
+yksiväristä petroliversiota. Painatus ei saa vaarantaa vaatteen EN ISO 20471 -luokitusta.
+
+## 5. Käyttö järjestelmässä
 
 | Missä | Miten |
 |---|---|
